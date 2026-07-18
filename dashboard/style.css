@@ -620,6 +620,11 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
   box-shadow: 0 0 10px rgba(0, 217, 245, 0.15);
 }
 
+select option {
+  background: #0b1017;
+  color: var(--text);
+}
+
 .primary-btn {
   background: var(--accent);
   border: none;
@@ -640,6 +645,31 @@ input[type="text"]:focus, input[type="password"]:focus, select:focus {
 }
 
 .primary-btn:active {
+  transform: translateY(0);
+}
+
+.secondary-btn {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(0, 217, 245, 0.3);
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 16px;
+}
+
+.secondary-btn:hover {
+  background: rgba(0, 217, 245, 0.08);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(0, 217, 245, 0.15);
+  transform: translateY(-1px);
+}
+
+.secondary-btn:active {
   transform: translateY(0);
 }
 
