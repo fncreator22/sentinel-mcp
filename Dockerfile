@@ -17,9 +17,10 @@ COPY . .
 # Train the classifier during build to ensure model pickles are present and compatible
 RUN python train/train_classifier.py
 
-# Expose FastAPI port (8000) and dashboard port (8080)
+# Expose FastAPI port (8000), dashboard port (8080), and SSE MCP port (8002)
 EXPOSE 8000
 EXPOSE 8080
+EXPOSE 8002
 
-# Command to run both the API and serve the dashboard using a startup shell script
-CMD python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 & cd dashboard && python -m http.server 8080
+# Command to run the API, SSE MCP server, and serve the dashboard using a startup shell script
+CMD python mcp_server/sse_server.py --port 8002 & python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 & cd dashboard && python -m http.server 8080
