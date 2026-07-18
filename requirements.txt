@@ -7,8 +7,9 @@ fastapi>=0.110
 uvicorn>=0.29
 pydantic>=2.6
 
-# MCP server (stretch goal)
+# MCP server — stdio and SSE transports
 mcp>=1.0
+starlette>=0.37          # required by FastMCP SSE transport
 
 # Testing
 pytest>=8.0

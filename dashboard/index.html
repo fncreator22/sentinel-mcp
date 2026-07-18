@@ -5,268 +5,367 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sentinel — Guardrail Control Panel</title>
   <meta name="description" content="Sentinel is a three-stage guardrail agent for LLM-powered coding assistants. Monitor decisions, manage rules, and configure models from this dashboard.">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234d9fff' d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2300d9f5' d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ===== SIDEBAR ===== -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="currentColor"/>
-      </svg>
-      <span class="brand-name">Sentinel</span>
+  <!-- Background neon glows -->
+  <div class="bg-glow"></div>
+  <div class="bg-glow-secondary"></div>
+
+  <!-- ===== CYBERDEFEND-THEMED HEADER ===== -->
+  <header class="top-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <svg class="brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="currentColor"/>
+        </svg>
+        <span class="brand-name">SENTINEL</span>
+      </div>
+      <div class="branch-pill">
+        <span class="pulse-dot"></span>
+        <span class="branch-name-val">main</span>
+        <span class="branch-tag">PRODUCTION</span>
+      </div>
     </div>
 
-    <nav class="sidebar-nav">
+    <!-- Navigation Pills in Header Center (CyberDefend style) -->
+    <nav class="header-nav">
       <button class="tab-btn active" data-tab="overview" id="navOverview">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        <span>Overview</span>
+        <span class="nav-dot"></span>Overview
       </button>
       <button class="tab-btn" data-tab="rules" id="navRules">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-        <span>Rules</span>
+        <span class="nav-dot"></span>Rules
       </button>
       <button class="tab-btn" data-tab="models" id="navModels">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-        <span>Model Settings</span>
+        <span class="nav-dot"></span>Model Settings
       </button>
       <button class="tab-btn" data-tab="servers" id="navServers">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-        <span>MCP Servers</span>
+        <span class="nav-dot"></span>MCP Servers
       </button>
       <button class="tab-btn" data-tab="share" id="navShare">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-        <span>Export &amp; Share</span>
+        <span class="nav-dot"></span>Export &amp; Share
       </button>
     </nav>
 
-    <div class="sidebar-footer">
-      <div class="api-status" id="apiStatus">Connecting…</div>
-    </div>
-  </aside>
-
-  <!-- ===== MAIN CONTENT ===== -->
-  <div class="main-layout">
-
-    <!-- Top Header / Breadcrumbs (Vercel Style) -->
-    <header class="top-header">
-      <div class="breadcrumbs">
-        <svg class="breadcrumb-brand" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="currentColor"/>
-        </svg>
-        <span class="sep">/</span>
-        <span class="crumb">sentinel-mcp</span>
-        <span class="badge-free">FREE</span>
-        <span class="sep">/</span>
-        <span class="crumb">fncreator22's Project</span>
-        <span class="sep">/</span>
-        <span class="crumb-branch">main</span>
-        <span class="badge-prod">PRODUCTION</span>
-      </div>
-      <button class="connect-btn" id="connectModalBtn">
+    <div class="header-right">
+      <div class="api-badge" id="apiStatus">Connecting…</div>
+      
+      <!-- Connect button (Header Right, styled like CyberDefend action icons) -->
+      <button class="action-btn connect-trigger-btn" id="connectModalBtn" title="Connect Client">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="plug-icon"><path d="M18 8h1a4 4 0 0 1 0 8h-1M6 8H5a4 4 0 0 0 0 8h1M2 12h4M18 12h4M9 8v8M15 8v8"/></svg>
         <span>Connect</span>
       </button>
-    </header>
+      
+      <!-- Decorative Cyber Icons -->
+      <div class="header-icons">
+        <button class="icon-only-btn" title="System Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button class="icon-only-btn" title="Alert Notifications">
+          <span class="noti-badge"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-layout">
 
     <!-- Auth key bar -->
     <div id="authBar" class="auth-bar hidden">
-      <span>This Sentinel instance requires a key to make changes.</span>
-      <input type="password" id="authKeyInput" placeholder="Paste your X-Sentinel-Key" />
-      <button id="saveAuthKey">Remember for session</button>
+      <div class="auth-card glass-card">
+        <span>Sentinel is locked. Paste key to unlock management tabs:</span>
+        <input type="password" id="authKeyInput" placeholder="X-Sentinel-Key" />
+        <button id="saveAuthKey" class="primary-btn">Unlock</button>
+      </div>
     </div>
 
-    <!-- ===== OVERVIEW TAB ===== -->
+    <!-- =========================================================================
+         OVERVIEW TAB PANEL
+         ========================================================================= -->
     <section class="tab-panel active" id="tab-overview">
+      <div class="cyber-grid">
 
-      <div class="overview-grid">
+        <!-- COLUMN 1: PIPELINE STAGES (DATA CENTERS STYLE) -->
+        <div class="cyber-col col-stages">
+          <div class="col-header">
+            <h3>PIPELINE STAGES</h3>
+            <span class="stat-meta">Active Nodes</span>
+          </div>
 
-        <!-- LEFT: Pipeline diagram + Try action -->
-        <div class="overview-left">
+          <!-- Stage 1 Card -->
+          <div class="stage-card glass-card" id="stageNode1" data-stage="1">
+            <div class="card-header">
+              <span class="card-title">Stage 1: Rules Engine</span>
+              <span class="card-meta">US-EAST</span>
+            </div>
+            <div class="card-main">
+              <div class="metric-row">
+                <span class="metric-val" id="countRules">0</span>
+                <span class="metric-label">detections</span>
+              </div>
+              <div class="progress-bar-stack">
+                <div class="progress-label-row">
+                  <span>always first</span>
+                  <span>100% hits</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill stage1-fill" id="barRules" style="width: 100%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-          <!-- Pipeline Flow Diagram -->
-          <div class="panel pipeline-card">
-            <div class="pipeline-header">
-              <h2>Pipeline Architecture</h2>
-              <div class="pipeline-controls">
+          <!-- Stage 2 Card -->
+          <div class="stage-card glass-card" id="stageNode2" data-stage="2">
+            <div class="card-header">
+              <span class="card-title">Stage 2: Classifier</span>
+              <span class="card-meta">CENTRAL</span>
+            </div>
+            <div class="card-main">
+              <div class="metric-row">
+                <span class="metric-val" id="countClassifier">0</span>
+                <span class="metric-label">detections</span>
+              </div>
+              <div class="progress-bar-stack">
+                <div class="progress-label-row">
+                  <span>76.3% accuracy</span>
+                  <span>confidence threshold</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill stage2-fill" id="barClassifier" style="width: 75%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stage 3 Card -->
+          <div class="stage-card glass-card" id="stageNode3" data-stage="3">
+            <div class="card-header">
+              <span class="card-title">Stage 3: LLM Reviewer</span>
+              <span class="card-meta">WEST</span>
+            </div>
+            <div class="card-main">
+              <div class="metric-row">
+                <span class="metric-val" id="countLlm">0</span>
+                <span class="metric-label">detections</span>
+              </div>
+              <div class="progress-bar-stack">
+                <div class="progress-label-row">
+                  <span>ambiguous only</span>
+                  <span>deep context</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill stage3-fill" id="barLlm" style="width: 40%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMN 2: PIPELINE COMPONENTS (TOWERS STYLE) + TRY FORM -->
+        <div class="cyber-col col-components">
+          <div class="col-header">
+            <h3>PIPELINE ELEMENTS</h3>
+            <span class="stat-meta">Active Settings</span>
+          </div>
+
+          <div class="tower-list-container">
+            <!-- Stdio element -->
+            <div class="tower-card glass-card">
+              <div class="tower-info">
+                <span class="tower-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+                <div class="tower-meta">
+                  <span class="tower-name">stdio_mcp_listener</span>
+                  <span class="tower-details">Local process server</span>
+                </div>
+              </div>
+              <div class="tower-status">
+                <span class="tower-badge active">ONLINE</span>
+              </div>
+            </div>
+
+            <!-- SSE element -->
+            <div class="tower-card glass-card">
+              <div class="tower-info">
+                <span class="tower-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg></span>
+                <div class="tower-meta">
+                  <span class="tower-name">sse_mcp_service</span>
+                  <span class="tower-details">Port 8002 SSE transport</span>
+                </div>
+              </div>
+              <div class="tower-status">
+                <span class="tower-badge active" id="towerSseBadge">CHECKING</span>
+              </div>
+            </div>
+
+            <!-- Active Rules count element -->
+            <div class="tower-card glass-card">
+              <div class="tower-info">
+                <span class="tower-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+                <div class="tower-meta">
+                  <span class="tower-name">pattern_validators</span>
+                  <span class="tower-details">Stage 1 exact matches</span>
+                </div>
+              </div>
+              <div class="tower-status">
+                <span class="tower-badge">RUNNING</span>
+              </div>
+            </div>
+
+            <!-- Try action form placed inside middle column to look awesome -->
+            <div class="try-card glass-card">
+              <h4>TEST INTERACTIVE ACTION</h4>
+              <p class="hint">Verify how the pipeline handles an ambiguous or malicious request.</p>
+              <form id="reviewForm">
+                <div class="input-stack">
+                  <label for="userTask">User Task Context</label>
+                  <input type="text" id="userTask" placeholder="e.g. Refactor the file system interface" />
+                </div>
+                <div class="input-stack">
+                  <label for="actionText">Command/Action to Review</label>
+                  <input type="text" id="actionText" placeholder="e.g. rm -rf /tmp/cache  or  git commit" required />
+                </div>
+                <button type="submit" class="primary-btn pulse-glow">REVIEW PATHWAY</button>
+              </form>
+              <div id="reviewResult" class="review-result hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMN 3: MAP / NETWORK THREADS VISUALIZATION -->
+        <div class="cyber-col col-visualization">
+          <div class="col-header">
+            <h3>INTEGRATION PATHWAYS</h3>
+            <div class="header-actions">
+              <div class="pipeline-status-controls">
                 <span id="pipelineBadge" class="pipeline-badge active">Active</span>
                 <button id="pauseResumeBtn" class="pause-btn">Pause</button>
               </div>
             </div>
+          </div>
 
-            <div class="pipeline-diagram" id="pipelineDiagram">
-              <!-- Stage nodes rendered by JS, SVG connections behind them -->
-              <svg class="pipeline-svg" id="pipelineSvg" viewBox="0 0 700 160" preserveAspectRatio="xMidYMid meet">
-                <!-- Animated connection lines -->
-                <defs>
-                  <marker id="arrowBlue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                    <path d="M0,0 L0,6 L8,3 z" fill="var(--accent)"/>
-                  </marker>
-                  <marker id="arrowGreen" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-                    <path d="M0,0 L0,6 L8,3 z" fill="var(--signal-allow)"/>
-                  </marker>
-                </defs>
+          <div class="vis-container">
+            <!-- Animated interactive threads connecting stages to output verdicts -->
+            <canvas id="threadCanvas" class="thread-canvas"></canvas>
 
-                <!-- Stage 1 → Stage 2 -->
-                <line class="pipe-line animated-line" x1="178" y1="80" x2="305" y2="80"
-                      stroke="var(--accent)" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowBlue)"/>
-
-                <!-- Stage 2 → Stage 3 -->
-                <line class="pipe-line animated-line" x1="398" y1="80" x2="522" y2="80"
-                      stroke="var(--signal-allow)" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrowGreen)"/>
-
-                <!-- Stage 1 label above line -->
-                <text x="242" y="68" text-anchor="middle" class="pipe-label">always first</text>
-                <!-- Stage 2 label above line -->
-                <text x="460" y="68" text-anchor="middle" class="pipe-label">if uncertain</text>
-              </svg>
-
-              <div class="stage-nodes">
-                <div class="stage-node" id="stageNode1" data-stage="1">
-                  <div class="node-icon rules-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-                  </div>
-                  <div class="node-label">Stage 1</div>
-                  <div class="node-sublabel">Rules Engine</div>
-                  <div class="node-stat" id="stat1">instant</div>
+            <!-- Floating ANOMALY DETECTION panel (from screenshot) -->
+            <div class="anomaly-floating-card glass-card">
+              <div class="anomaly-header">
+                <span class="anomaly-title">GUARDRAIL METRICS</span>
+                <svg class="arrow-up-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </div>
+              <div class="anomaly-stats">
+                <div class="anomaly-row">
+                  <span class="label">Guardrail State</span>
+                  <span class="value active" id="pipelineStateText">ACTIVE</span>
                 </div>
-
-                <div class="stage-node" id="stageNode2" data-stage="2">
-                  <div class="node-icon classifier-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-                  </div>
-                  <div class="node-label">Stage 2</div>
-                  <div class="node-sublabel">Classifier</div>
-                  <div class="node-stat" id="stat2">76.3% acc.</div>
+                <div class="anomaly-row">
+                  <span class="label">P95 Verification Latency</span>
+                  <span class="value cyan">18.4 ms</span>
                 </div>
-
-                <div class="stage-node" id="stageNode3" data-stage="3">
-                  <div class="node-icon llm-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
-                  </div>
-                  <div class="node-label">Stage 3</div>
-                  <div class="node-sublabel">LLM Review</div>
-                  <div class="node-stat" id="stat3">ambiguous only</div>
+                <div class="anomaly-row">
+                  <span class="label">Model Provider (S3)</span>
+                  <span class="value" id="activeProviderText">LOCAL</span>
+                </div>
+                <div class="anomaly-row">
+                  <span class="label">Recent Blocks</span>
+                  <span class="value error" id="countBlock">0</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Try an action -->
-          <div class="panel">
-            <h2>Try an Action</h2>
-            <p class="hint">Submit any command, SQL statement, or git operation and see which pipeline stage decides its fate.</p>
-            <form id="reviewForm">
-              <label for="userTask">User task context <span class="label-hint">(helps Stage 3 detect scope creep)</span></label>
-              <input type="text" id="userTask" placeholder="e.g. Refactor the login module" />
-              <label for="actionText">Action to review</label>
-              <input type="text" id="actionText" placeholder="e.g.  rm -rf /tmp/build   or   git status" required />
-              <button type="submit" class="primary-btn">Review Action</button>
-            </form>
-            <div id="reviewResult" class="review-result hidden"></div>
-          </div>
-
-          <!-- Live Decision Feed -->
-          <div class="panel">
-            <div class="feed-header">
-              <h2>Live Decision Feed</h2>
-              <div class="feed-controls">
-                <button id="refreshFeed" class="icon-btn" title="Refresh now">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                </button>
-                <label class="toggle-label">
-                  <input type="checkbox" id="autoRefresh" checked>
-                  <span>Auto-refresh (3s)</span>
-                </label>
+            <!-- Stdio vs SSE active indicators on the right -->
+            <div class="right-terminals">
+              <div class="terminal-node" style="top: 25%">
+                <span class="node-label">Stdio Client</span>
+                <span class="node-sub">Claude Code / Desktop</span>
               </div>
-            </div>
-            <p class="hint">Every action Sentinel has reviewed from any connected MCP client appears here in real time.</p>
-            <div id="decisionFeed" class="feed"></div>
-          </div>
-
-        </div><!-- /overview-left -->
-
-        <!-- RIGHT: Status panels -->
-        <div class="overview-right">
-
-          <!-- Connectivity ring -->
-          <div class="panel status-ring-card">
-            <h3>Pipeline Status</h3>
-            <div class="ring-gauge" id="ringGauge">
-              <svg viewBox="0 0 120 120" class="ring-svg">
-                <circle class="ring-track" cx="60" cy="60" r="48" fill="none" stroke-width="10"/>
-                <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="48" fill="none" stroke-width="10"
-                        stroke-dasharray="301.6" stroke-dashoffset="0"
-                        stroke-linecap="round" transform="rotate(-90 60 60)"/>
-              </svg>
-              <div class="ring-center">
-                <span class="ring-label" id="ringLabel">Active</span>
+              <div class="terminal-node" style="top: 50%">
+                <span class="node-label">SSE Gateway</span>
+                <span class="node-sub">Web-based IDEs</span>
               </div>
-            </div>
-            <div class="ring-legend">
-              <span class="legend-dot active-dot"></span><span>Active</span>
-              <span class="legend-dot paused-dot"></span><span>Paused</span>
-            </div>
-          </div>
-
-          <!-- Decision stats -->
-          <div class="panel decision-stats-card">
-            <h3>Decision Breakdown</h3>
-            <p class="hint small">Based on recent audit log entries.</p>
-            <div class="stat-bars" id="decisionStats">
-              <div class="stat-bar-row">
-                <span class="stat-bar-label allow-label">ALLOW</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill allow-fill" id="barAllow" style="width:0%"></div></div>
-                <span class="stat-bar-count" id="countAllow">—</span>
-              </div>
-              <div class="stat-bar-row">
-                <span class="stat-bar-label review-label">REVIEW</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill review-fill" id="barReview" style="width:0%"></div></div>
-                <span class="stat-bar-count" id="countReview">—</span>
-              </div>
-              <div class="stat-bar-row">
-                <span class="stat-bar-label block-label">BLOCK</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill block-fill" id="barBlock" style="width:0%"></div></div>
-                <span class="stat-bar-count" id="countBlock">—</span>
+              <div class="terminal-node" style="top: 75%">
+                <span class="node-label">Audit Logger</span>
+                <span class="node-sub">SQLite Database</span>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Stage routing -->
-          <div class="panel stage-routing-card">
-            <h3>Stage Routing</h3>
-            <p class="hint small">Which stage resolved each decision.</p>
-            <div class="stat-bars" id="stageStats">
-              <div class="stat-bar-row">
-                <span class="stat-bar-label stage1-label">Rules</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill stage1-fill" id="barRules" style="width:0%"></div></div>
-                <span class="stat-bar-count" id="countRules">—</span>
-              </div>
-              <div class="stat-bar-row">
-                <span class="stat-bar-label stage2-label">Classifier</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill stage2-fill" id="barClassifier" style="width:0%"></div></div>
-                <span class="stat-bar-count" id="countClassifier">—</span>
-              </div>
-              <div class="stat-bar-row">
-                <span class="stat-bar-label stage3-label">LLM</span>
-                <div class="stat-bar-track"><div class="stat-bar-fill stage3-fill" id="barLlm" style="width:0%"></div></div>
-                <span class="stat-bar-count" id="countLlm">—</span>
-              </div>
+      </div><!-- /cyber-grid -->
+
+      <!-- BOTTOM ROW: OSCILLOSCOPE MONITOR & DECISION FEED -->
+      <div class="cyber-bottom-grid">
+        
+        <!-- Bottom Left: Oscilloscope Chance of Failure -->
+        <div class="failure-chart-card glass-card">
+          <div class="card-header-simple">
+            <h4>THREAT DETECTIONS &amp; TRAFFIC WAVE</h4>
+            <div class="legend">
+              <span class="dot d-rules"></span>Rules
+              <span class="dot d-class"></span>Classifier
+              <span class="dot d-llm"></span>LLM
             </div>
           </div>
+          <div class="chart-container">
+            <canvas id="waveCanvas" class="wave-canvas"></canvas>
+          </div>
+        </div>
 
-        </div><!-- /overview-right -->
+        <!-- Bottom Right: Live Feed -->
+        <div class="live-feed-card glass-card">
+          <div class="feed-header">
+            <h4>LIVE DECISION FEED</h4>
+            <div class="feed-controls">
+              <button id="refreshFeed" class="icon-btn" title="Refresh now">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              </button>
+              <label class="toggle-label">
+                <input type="checkbox" id="autoRefresh" checked>
+                <span>Auto-refresh (3s)</span>
+              </label>
+            </div>
+          </div>
+          <div id="decisionFeed" class="feed">
+            <p style="color: var(--text-dim)">Awaiting system sync…</p>
+          </div>
+        </div>
 
-      </div><!-- /overview-grid -->
+        <!-- Hidden elements needed to satisfy app.js references -->
+        <div class="hidden-compat">
+          <div id="ringGauge" style="display:none">
+            <div id="ringFill"></div>
+            <div id="ringLabel"></div>
+          </div>
+          <div id="decisionStats" style="display:none">
+            <div id="barAllow"></div><div id="countAllow"></div>
+            <div id="barReview"></div><div id="countReview"></div>
+          </div>
+          <div id="stageStats" style="display:none">
+            <div id="barRules"></div>
+            <div id="barClassifier"></div>
+            <div id="barLlm"></div>
+          </div>
+        </div>
+
+      </div>
     </section>
 
-    <!-- ===== RULES TAB ===== -->
+
+    <!-- =========================================================================
+         RULES TAB PANEL
+         ========================================================================= -->
     <section class="tab-panel" id="tab-rules">
-      <div class="panel wide">
-        <h2>Rule Editor <span class="tag stage">Stage 1 — instant, no model</span></h2>
-        <p class="hint">These patterns are checked first, before any model runs. A <strong>block</strong> match stops the action immediately. An <strong>allow</strong> match approves it immediately. Anything that matches neither is passed to the trained classifier (Stage 2). Changes apply live — no restart needed.</p>
+      <div class="wide-panel glass-card">
+        <div class="panel-header">
+          <h2>Rule Editor</h2>
+          <span class="tag stage">Stage 1 — instant, no model</span>
+        </div>
+        <p class="hint">These patterns are checked first. A <strong>block</strong> match stops the action immediately. An <strong>allow</strong> match approves it. Unmatched actions escalate to the Stage 2 classifier. Changes apply live.</p>
 
         <div class="rule-columns">
           <div class="rule-group">
@@ -284,34 +383,44 @@
           </div>
         </div>
 
-        <label for="confidenceThreshold">Classifier confidence threshold — how certain Stage 2 must be before resolving without escalating to Stage 3.</label>
-        <input type="range" id="confidenceThreshold" min="0.5" max="0.99" step="0.01" value="0.75" />
-        <span id="confidenceValue">0.75</span>
+        <div class="threshold-slider-group">
+          <label for="confidenceThreshold">Classifier confidence threshold — how certain Stage 2 must be before resolving without escalating to Stage 3.</label>
+          <div class="slider-row">
+            <input type="range" id="confidenceThreshold" min="0.5" max="0.99" step="0.01" value="0.75" />
+            <span id="confidenceValue" class="slider-value">0.75</span>
+          </div>
+        </div>
 
-        <button id="saveRules" class="primary-btn" style="margin-top:1.5rem">Save Rules</button>
+        <button id="saveRules" class="primary-btn save-btn">Save Rules</button>
         <div id="saveStatus" class="save-status"></div>
       </div>
     </section>
 
-    <!-- ===== MODEL SETTINGS TAB ===== -->
+
+    <!-- =========================================================================
+         MODEL SETTINGS TAB PANEL
+         ========================================================================= -->
     <section class="tab-panel" id="tab-models">
-      <div class="panel wide">
-        <h2>Model Settings <span class="tag stage">Stage 3 — only used for ambiguous actions</span></h2>
-        <p class="hint">Stage 3 only runs when Stage 1 found no matching rule and Stage 2's classifier was not confident enough. Choose what powers it below.</p>
+      <div class="wide-panel glass-card">
+        <div class="panel-header">
+          <h2>Model Settings</h2>
+          <span class="tag stage">Stage 3 — only used for ambiguous actions</span>
+        </div>
+        <p class="hint">Stage 3 runs only when Stage 1 rules don't match and Stage 2's classifier isn't confident. Configure the model endpoint below.</p>
 
         <div class="provider-toggle">
           <label class="provider-option">
             <input type="radio" name="providerChoice" value="local" checked />
-            <div>
+            <div class="option-content">
               <strong>Use a local model</strong>
               <p class="hint small">Runs entirely on this machine via <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>. Nothing leaves your computer.</p>
             </div>
           </label>
           <label class="provider-option">
             <input type="radio" name="providerChoice" value="api" />
-            <div>
+            <div class="option-content">
               <strong>Use an API model</strong>
-              <p class="hint small">Calls a hosted model over the internet (OpenAI, Anthropic, or any compatible endpoint). Action text is sent to that provider.</p>
+              <p class="hint small">Calls a hosted model over the internet (OpenAI, Anthropic, or compatible). Action text is transmitted to the provider.</p>
             </div>
           </label>
         </div>
@@ -320,42 +429,51 @@
         <div id="localModelPanel" class="provider-panel">
           <div id="connectivityBadge" class="connectivity-badge local">No internet required — model runs entirely on this machine</div>
 
-          <div style="margin-bottom:1.5rem">
+          <div class="input-stack select-stack">
             <label for="ollamaBaseUrl">Ollama Base URL</label>
-            <input type="text" id="ollamaBaseUrl" placeholder="http://localhost:11434" style="width:100%;margin-top:4px" />
-            <p class="hint small" style="margin-top:4px">Running inside Docker? Use <code>http://host.docker.internal:11434</code> to reach your host machine's Ollama.</p>
+            <input type="text" id="ollamaBaseUrl" placeholder="http://localhost:11434" />
+            <p class="hint small">Running inside Docker? Use <code>http://host.docker.internal:11434</code> to reach the host's Ollama.</p>
           </div>
 
           <h3>Detected local models</h3>
-          <p class="hint small">Sentinel automatically discovers models you have already pulled with Ollama.</p>
+          <p class="hint small">Sentinel automatically discovers models pulled with Ollama.</p>
           <div id="localModelStatus" class="status-line"></div>
           <div id="localModelList" class="model-list"></div>
-          <p class="hint small">Don't see your model? Pull one first:</p>
+          <p class="hint small">Don't see your model? Pull one first in your terminal:</p>
           <pre class="code-block">ollama pull qwen2.5-coder:7b</pre>
-          <button id="refreshLocalModels">Refresh detected models</button>
+          <button id="refreshLocalModels" class="secondary-btn">Refresh detected models</button>
         </div>
 
         <!-- API model panel -->
         <div id="apiModelPanel" class="provider-panel hidden">
           <div id="connectivityBadgeApi" class="connectivity-badge api">Requires active internet connection to reach the API provider</div>
-          <h3>API provider</h3>
-          <label for="apiProviderSelect">Provider</label>
-          <select id="apiProviderSelect">
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="gemini">Google Gemini</option>
-            <option value="custom">Custom (OpenAI-compatible endpoint)</option>
-          </select>
+          
+          <h3>API Provider</h3>
+          <div class="input-stack select-stack">
+            <label for="apiProviderSelect">Provider</label>
+            <select id="apiProviderSelect">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="custom">Custom (OpenAI-compatible endpoint)</option>
+            </select>
+          </div>
 
-          <label for="apiBaseUrl">Base URL</label>
-          <input type="text" id="apiBaseUrl" placeholder="https://api.openai.com/v1" />
+          <div class="input-stack select-stack">
+            <label for="apiBaseUrl">Base URL</label>
+            <input type="text" id="apiBaseUrl" placeholder="https://api.openai.com/v1" />
+          </div>
 
-          <label for="apiModelName">Model name</label>
-          <input type="text" id="apiModelName" placeholder="gpt-4o-mini" />
+          <div class="input-stack select-stack">
+            <label for="apiModelName">Model name</label>
+            <input type="text" id="apiModelName" placeholder="gpt-4o-mini" />
+          </div>
 
-          <label for="apiKeyInput">API key <span id="apiKeyStatus" class="hint small"></span></label>
-          <input type="password" id="apiKeyInput" placeholder="Paste your API key (leave blank to keep the saved one)" />
-          <p class="hint small">Your key is stored only in <code>config/model_config.local.yaml</code> on this machine, is never written to the audit log, and is never returned in full — only the last 4 characters are shown.</p>
+          <div class="input-stack select-stack">
+            <label for="apiKeyInput">API key <span id="apiKeyStatus" class="hint small"></span></label>
+            <input type="password" id="apiKeyInput" placeholder="Paste your API key (leave blank to keep the saved one)" />
+            <p class="hint small">Your key is stored only in <code>config/model_config.local.yaml</code> on this machine.</p>
+          </div>
         </div>
 
         <div class="model-actions">
@@ -367,11 +485,17 @@
       </div>
     </section>
 
-    <!-- ===== MCP SERVERS TAB ===== -->
+
+    <!-- =========================================================================
+         MCP SERVERS TAB PANEL
+         ========================================================================= -->
     <section class="tab-panel" id="tab-servers">
-      <div class="panel wide">
-        <h2>MCP Servers</h2>
-        <p class="hint">This dashboard tracks all registered guardrail servers. <strong>Sentinel (this instance) is always registered and fully active.</strong> Register additional MCP-compatible servers below to monitor their status from one place.</p>
+      <div class="wide-panel glass-card">
+        <div class="panel-header">
+          <h2>MCP Servers</h2>
+          <span class="tag stage">Global Registry</span>
+        </div>
+        <p class="hint">Tracks all active guardrail servers. <strong>Sentinel is always registered and fully active.</strong> Register other compatible servers to view their status in one place.</p>
         <div id="serverList" class="server-list"></div>
 
         <h3>Register another server</h3>
@@ -385,27 +509,33 @@
       </div>
     </section>
 
-    <!-- ===== EXPORT TAB ===== -->
+
+    <!-- =========================================================================
+         EXPORT TAB PANEL
+         ========================================================================= -->
     <section class="tab-panel" id="tab-share">
-      <div class="panel wide">
-        <h2>Export &amp; Share</h2>
-        <p class="hint">Download this Sentinel instance's configuration — rules, model provider, and registered servers — as a JSON file. <strong>API keys are never included.</strong></p>
+      <div class="wide-panel glass-card">
+        <div class="panel-header">
+          <h2>Export &amp; Share</h2>
+          <span class="tag stage">Configuration Sync</span>
+        </div>
+        <p class="hint">Download this Sentinel instance's rules, model settings, and server list as JSON. <strong>API keys are never exported.</strong></p>
         <button id="exportBtn" class="primary-btn">Download config bundle</button>
         <pre id="exportPreview" class="code-block export-preview"></pre>
       </div>
 
-      <div class="panel wide" style="margin-top:2rem">
+      <div class="wide-panel glass-card" style="margin-top:2rem">
         <h2>MCP Client Integration</h2>
-        <p class="hint">Copy this JSON block directly into your Claude Desktop, Claude Code, Cursor, or CodeX settings to register Sentinel as an active guardrail server.</p>
-        <div style="display:flex;gap:1rem;align-items:center;margin-bottom:1rem">
+        <p class="hint">Copy this JSON block directly into your Claude Desktop, Claude Code, or Cursor settings to register Sentinel.</p>
+        <div class="action-row" style="margin-bottom:1rem">
           <button id="copyMcpConfigBtn" class="primary-btn">Copy Config to Clipboard</button>
-          <span id="copyMcpStatus" class="save-status" style="margin:0;display:inline"></span>
+          <span id="copyMcpStatus" class="save-status" style="margin-left: 1rem"></span>
         </div>
         <pre id="mcpConfigPreview" class="code-block export-preview">Loading integration config…</pre>
       </div>
     </section>
 
-  </div><!-- /main-layout -->
+  </main>
 
   <!-- ===== CONNECT MODAL (Thread Guide UI) ===== -->
   <div id="connectModal" class="modal-overlay hidden">
@@ -414,49 +544,111 @@
         <h3>Connect to Sentinel</h3>
         <button id="closeConnectModal" class="close-btn">&times;</button>
       </div>
-      
+
       <div class="modal-body">
-        <div class="modal-section">
-          <label>Sentinel API Endpoint</label>
-          <div class="copy-input-group">
-            <input type="text" id="connectEndpointVal" value="http://localhost:8000" readonly />
-            <button id="copyEndpointBtn" class="primary-btn copy-btn">Copy</button>
-            <span id="copyEndpointStatus" class="save-status"></span>
+
+        <!-- Transport selector -->
+        <div class="transport-tabs">
+          <button class="transport-tab active" id="tabStdio">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Stdio <span class="transport-badge">Local&nbsp;tools</span>
+          </button>
+          <button class="transport-tab" id="tabSse">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+            SSE <span class="transport-badge sse-badge">Web&nbsp;clients</span>
+          </button>
+        </div>
+
+        <!-- ===== STDIO PANEL ===== -->
+        <div id="panelStdio" class="transport-panel">
+          <div class="modal-section">
+            <label>Stdio MCP — Local Process Command</label>
+            <div class="copy-input-group">
+              <input type="text" id="connectEndpointVal" value="python mcp_server/server.py" readonly />
+              <button id="copyEndpointBtn" class="primary-btn copy-btn">Copy</button>
+              <span id="copyEndpointStatus" class="save-status"></span>
+            </div>
+            <div class="conn-badge offline-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M3 3l18 18M10.58 10.58A3 3 0 0 0 12 15a3 3 0 0 0 2.83-2M14.12 14.12A3 3 0 0 1 12 15"/><path d="M1 1l22 22"/></svg>
+              No internet required — runs entirely on this machine (unless Stage 3 uses an API provider)
+            </div>
+          </div>
+          <div class="timeline-guide">
+            <h4>Integration Guide — Stdio</h4>
+            <div class="timeline-step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h5>Retrieve MCP Integration Config</h5>
+                <p>Go to the <strong>Export &amp; Share</strong> tab and click <strong>Copy Config to Clipboard</strong>. It auto-fills your machine's project path.</p>
+              </div>
+            </div>
+            <div class="timeline-step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h5>Paste into Client Settings</h5>
+                <ul>
+                  <li><strong>Claude Code:</strong> <code>~/.claude/claude_code_config.json</code> or <code>.claude/settings.json</code></li>
+                  <li><strong>Claude Desktop:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code></li>
+                  <li><strong>Cursor / VS Code:</strong> MCP Settings → Add Server → Type: stdio</li>
+                </ul>
+              </div>
+            </div>
+            <div class="timeline-step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h5>Verify Connection</h5>
+                <p>Launch your coding assistant. Verdicts will stream to the <strong>Overview feed</strong> in real time.</p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="timeline-guide">
-          <h4>Integration Guide (Timeline)</h4>
-          
-          <div class="timeline-step">
-            <div class="step-num">1</div>
-            <div class="step-content">
-              <h5>Retrieve MCP Integration Config</h5>
-              <p>Go to the <strong>Export &amp; Share</strong> tab in the sidebar and click <strong>Copy Config to Clipboard</strong> to copy the pre-built JSON settings block. It automatically detects and formats your local project directory path.</p>
+        <!-- ===== SSE PANEL ===== -->
+        <div id="panelSse" class="transport-panel hidden">
+          <div class="modal-section">
+            <label>SSE MCP — Web Endpoint URL</label>
+            <div class="copy-input-group">
+              <input type="text" id="sseEndpointVal" value="http://localhost:8002/sse" readonly />
+              <button id="copySseEndpointBtn" class="primary-btn copy-btn">Copy</button>
+              <span id="copySseEndpointStatus" class="save-status"></span>
+            </div>
+            <div class="conn-badge" id="sseBadge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+              <span id="sseBadgeText">Loading connectivity status…</span>
             </div>
           </div>
-
-          <div class="timeline-step">
-            <div class="step-num">2</div>
-            <div class="step-content">
-              <h5>Paste into Client Settings</h5>
-              <p>Paste the copied JSON configuration into your preferred MCP client settings file:</p>
-              <ul>
-                <li><strong>Claude Code:</strong> Paste into <code>~/.claude/claude_code_config.json</code> or project-level <code>.claude/settings.json</code>.</li>
-                <li><strong>Claude Desktop:</strong> Paste into <code>%APPDATA%\Claude\claude_desktop_config.json</code>.</li>
-                <li><strong>Cursor / VS Code:</strong> Add under <strong>MCP Settings</strong> via the graphical UI or config file.</li>
-              </ul>
+          <div class="timeline-guide">
+            <h4>Integration Guide — SSE</h4>
+            <div class="timeline-step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h5>Start the SSE Server</h5>
+                <p>Open a terminal in the project directory and run:</p>
+                <pre class="inline-code">python mcp_server/sse_server.py</pre>
+                <p>Or double-click <strong>start.bat</strong> — it now starts the SSE server automatically on port 8002.</p>
+              </div>
             </div>
-          </div>
-
-          <div class="timeline-step">
-            <div class="step-num">3</div>
-            <div class="step-content">
-              <h5>Verify Connection</h5>
-              <p>Launch your coding assistant. It will auto-connect to your running Sentinel daemon and review commands. Verdict logs will begin streaming to the <strong>Overview feed</strong> in real time!</p>
+            <div class="timeline-step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h5>Connect Your Client</h5>
+                <ul>
+                  <li><strong>Cursor IDE:</strong> Settings → MCP → Add Server → Type: <code>SSE</code> → URL: <code>http://localhost:8002/sse</code></li>
+                  <li><strong>MCP Inspector (test tool):</strong></li>
+                </ul>
+                <pre class="inline-code">npx -y @modelcontextprotocol/inspector sse http://localhost:8002/sse</pre>
+              </div>
+            </div>
+            <div class="timeline-step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h5>Test a Decision</h5>
+                <p>In the Inspector UI, call <strong>review_action</strong> with <code>rm -rf /</code>. You should receive a <strong>BLOCK</strong> verdict. The decision will appear in the <strong>Overview feed</strong>.</p>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>

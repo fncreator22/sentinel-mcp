@@ -83,20 +83,33 @@ REM ---- Step 7: Open browser --------------------------------------------------
 echo [START] Opening dashboard in your browser...
 start "" "http://localhost:8080"
 
+REM ---- Step 8: Start the SSE MCP server in a new window --------------------------
+echo [START] Starting Sentinel SSE MCP server on http://localhost:8002 ...
+start "Sentinel SSE MCP (port 8002)" cmd /k "cd /d "%~dp0" && venv\Scripts\python.exe mcp_server\sse_server.py"
+
 echo.
 echo  ====================================================
 echo   Sentinel is running!
 echo.
-echo   Dashboard  : http://localhost:8080
-echo   API        : http://localhost:8000
-echo   API Docs   : http://localhost:8000/docs
-echo   API Health : http://localhost:8000/health
+echo   Dashboard       : http://localhost:8080
+echo   API             : http://localhost:8000
+echo   API Docs        : http://localhost:8000/docs
+echo   API Health      : http://localhost:8000/health
+echo   SSE MCP (web)   : http://localhost:8002/sse
 echo.
-echo   Two terminal windows were opened:
-echo     - "Sentinel API (port 8000)"    <- the Python backend
+echo   Three terminal windows were opened:
+echo     - "Sentinel API (port 8000)"      <- REST backend
 echo     - "Sentinel Dashboard (port 8080)" <- static file server
+echo     - "Sentinel SSE MCP (port 8002)"  <- web-based MCP endpoint
 echo.
-echo   Close those windows to stop Sentinel.
+echo   Stdio MCP (local tools like Cursor, Claude Code):
+echo     python mcp_server\server.py
+echo.
+echo   Test the SSE endpoint with MCP Inspector:
+echo     npx -y @modelcontextprotocol/inspector sse http://localhost:8002/sse
+echo.
+echo   Internet: only needed if Stage 3 is set to an API provider.
+echo   Local Ollama model = fully offline.
 echo  ====================================================
 echo.
 pause
