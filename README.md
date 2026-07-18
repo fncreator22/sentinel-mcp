@@ -11,6 +11,8 @@
 
 Sentinel sits between an LLM agent and its execution environment, reviewing every proposed action before it runs. It integrates with tools like Claude Code, Cursor, and CodeX via the Model Context Protocol (MCP), acting as an always-on safety layer that can block destructive commands, flag scope creep, and maintain a full audit trail of every decision.
 
+Supports **both Stdio (local process) and SSE (web endpoint)** MCP transports for maximum compatibility.
+
 ---
 
 ## The Problem
@@ -38,10 +40,10 @@ Sentinel implements a **multi-stage decision pipeline** that handles the full sp
 ```
 MCP Client (Claude Code / Cursor / CodeX)
         |
-        | stdio (MCP protocol)
-        v
-  mcp_server/server.py         <- MCP transport layer
+        +-- stdio transport (mcp_server/server.py)
+        +-- SSE transport   (mcp_server/sse_server.py)
         |
+        v
         | HTTP POST /review
         v
   api/main.py (FastAPI)        <- REST API, audit log, config management
@@ -96,7 +98,8 @@ sentinel/
 │   ├── audit_log.py             SQLite decision logger
 │   └── model_artifacts/         model.pkl + vectorizer.pkl (gitignored)
 ├── mcp_server/
-│   └── server.py                MCP stdio server (tool: review_action)
+│   ├── server.py                MCP stdio server
+│   └── sse_server.py            MCP SSE server (port 8002)
 ├── dashboard/
 │   ├── index.html               Single-page control panel
 │   ├── app.js                   Dashboard logic
@@ -219,11 +222,22 @@ Navigate to the **Rules** tab in the dashboard to add, edit, or remove pattern-m
 
 ---
 
-## MCP Integration
+## MCP Integration & Tools Initialization
 
-### Claude Code
+Sentinel exposes its capabilities to coding assistants via the Model Context Protocol (MCP). The server uses `FastMCP` to initialize the tools and handle the transport layer (both `stdio` and `sse` are supported).
 
-Add the following block to your Claude Code settings file (`~/.claude/claude_code_config.json` or the project-level `.claude/settings.json`):
+### Tools Initialization
+
+When the MCP server starts, it initializes the following tools and makes them available to the connected client:
+
+| Tool | Initialization & Arguments | Description |
+|---|---|---|
+| `review_action` | `action_text` (str), `user_task` (str) | Review a proposed agent action BEFORE executing it. Returns a verdict of `ALLOW`, `BLOCK`, or `REVIEW`. |
+| `get_recent_decisions` | `limit` (int, default=20) | Return recent entries from the audit log to provide the agent with context of past verdicts. |
+
+### Transport 1: Stdio (Local Process)
+
+Best for clients running locally on your machine (e.g., Claude Desktop, Claude Code, VS Code). Add the following block to your MCP client config (e.g. `~/.claude/claude_code_config.json`):
 
 ```json
 {
@@ -237,31 +251,25 @@ Add the following block to your Claude Code settings file (`~/.claude/claude_cod
 }
 ```
 
-Replace `/absolute/path/to/sentinel` with the actual path to this repository on your machine.
+### Transport 2: SSE (Web Endpoint)
 
-### Claude Desktop
+Best for web-based IDEs (like Cursor Web) or platforms that cannot spawn local subprocesses. `start.bat` automatically launches the SSE server alongside the API and dashboard.
 
-Add the same block to `%APPDATA%\Claude\claude_desktop_config.json` (Windows) or `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS).
+**Cursor IDE Connection:**
+- **Type**: `SSE`
+- **URL**: `http://localhost:8002/sse`
 
-### Getting the config automatically
+**Test with MCP Inspector:**
+```bash
+npx -y @modelcontextprotocol/inspector sse http://localhost:8002/sse
+```
 
-In the Sentinel dashboard, go to **Export and Share** and click **Copy Config to Clipboard**. The correct JSON block with your machine's path pre-filled will be copied, ready to paste directly into your MCP client configuration.
+### Rapid Connection Guide
 
-A complete annotated example config file is also included at `claude_mcp_config_example.json`.
-
-### Rapid Connection Guide (Thread Modal)
-
-To simplify client integration, the dashboard features a **Connect** utility in the top breadcrumb header:
+To simplify client integration, the dashboard features a **Connect** utility in the top right corner:
 1. Click the **Connect** button at the top right of the dashboard.
-2. A modal overlay will display the local API server URL (`http://localhost:8000`) and a timeline of instructions.
-3. Follow the sequence: copy the pre-built configuration JSON from the **Export & Share** tab, paste it into your editor/terminal settings, and start the coding assistant. Live review decisions will begin streaming to the **Overview feed** instantly.
-
-### Available MCP tools
-
-| Tool | Description |
-|---|---|
-| `review_action` | Review a proposed agent action. Returns `ALLOW`, `BLOCK`, or `REVIEW`. |
-| `get_recent_decisions` | Return recent entries from the audit log. |
+2. Select your preferred transport tab (Stdio or SSE).
+3. The modal overlay provides exact endpoints, URLs, and a timeline of instructions to register the Sentinel tools with your coding assistant.
 
 ---
 
