@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+sentinel.db
+config/model_config.local.yaml
+sentinel_core/model_artifacts/*.pkl
+.git/
+.gitignore
+.idea/
+.vscode/
