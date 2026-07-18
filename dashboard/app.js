@@ -119,10 +119,16 @@ async function loadFeed() {
   try {
     const res = await apiFetch("/log?limit=50");
     const rows = await res.json();
+    
+    // Reset highlights on nodes
+    document.querySelectorAll(".stage-node").forEach(node => node.classList.remove("pulse"));
+
     if (rows.length === 0) {
       feedEl.innerHTML = `<p style="color: var(--text-dim)">No decisions logged yet.</p>`;
+      updateStats(0, 0, 0, 0, 0, 0);
       return;
     }
+    
     feedEl.innerHTML = rows.map(row => `
       <div class="feed-row ${row.final_verdict}">
         <span class="verdict">${row.final_verdict}</span>
@@ -133,10 +139,80 @@ async function loadFeed() {
         </span>
       </div>
     `).join("");
+
+    // Calculate stats
+    let allow = 0, review = 0, block = 0;
+    let rules = 0, classifier = 0, llm = 0;
+
+    rows.forEach(row => {
+      // Verdict stats
+      if (row.final_verdict === "ALLOW") allow++;
+      else if (row.final_verdict === "REVIEW") review++;
+      else if (row.final_verdict === "BLOCK") block++;
+
+      // Stage stats
+      if (row.decided_by_stage === "rules_engine") rules++;
+      else if (row.decided_by_stage === "classifier") classifier++;
+      else if (row.decided_by_stage === "llm_reviewer") llm++;
+    });
+
+    updateStats(allow, review, block, rules, classifier, llm, rows.length);
+
+    // Pulse the node representing the latest decision stage
+    const latestStage = rows[0].decided_by_stage;
+    if (latestStage === "rules_engine") {
+      document.getElementById("stageNode1").classList.add("pulse");
+    } else if (latestStage === "classifier") {
+      document.getElementById("stageNode2").classList.add("pulse");
+    } else if (latestStage === "llm_reviewer") {
+      document.getElementById("stageNode3").classList.add("pulse");
+    }
+
   } catch (err) {
     feedEl.innerHTML = `<p style="color: var(--signal-block)">Could not load feed: ${err.message}</p>`;
   }
 }
+
+function updateStats(allow, review, block, rules, classifier, llm, total) {
+  // Update counts
+  document.getElementById("countAllow").textContent = allow;
+  document.getElementById("countReview").textContent = review;
+  document.getElementById("countBlock").textContent = block;
+
+  document.getElementById("countRules").textContent = rules;
+  document.getElementById("countClassifier").textContent = classifier;
+  document.getElementById("countLlm").textContent = llm;
+
+  if (total > 0) {
+    // Calculate percentages
+    const pctAllow = (allow / total) * 100;
+    const pctReview = (review / total) * 100;
+    const pctBlock = (block / total) * 100;
+
+    const pctRules = (rules / total) * 100;
+    const pctClassifier = (classifier / total) * 100;
+    const pctLlm = (llm / total) * 100;
+
+    // Update widths
+    document.getElementById("barAllow").style.width = `${pctAllow}%`;
+    document.getElementById("barReview").style.width = `${pctReview}%`;
+    document.getElementById("barBlock").style.width = `${pctBlock}%`;
+
+    document.getElementById("barRules").style.width = `${pctRules}%`;
+    document.getElementById("barClassifier").style.width = `${pctClassifier}%`;
+    document.getElementById("barLlm").style.width = `${pctLlm}%`;
+  } else {
+    // Reset widths
+    document.getElementById("barAllow").style.width = "0%";
+    document.getElementById("barReview").style.width = "0%";
+    document.getElementById("barBlock").style.width = "0%";
+
+    document.getElementById("barRules").style.width = "0%";
+    document.getElementById("barClassifier").style.width = "0%";
+    document.getElementById("barLlm").style.width = "0%";
+  }
+}
+
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -461,19 +537,33 @@ let sentinelPaused = false;
 function updatePauseButton() {
   const badge = document.getElementById("pipelineBadge");
   const btn = document.getElementById("pauseResumeBtn");
+  const ringFill = document.getElementById("ringFill");
+  const ringLabel = document.getElementById("ringLabel");
+
   if (!badge || !btn) return;
   if (sentinelPaused) {
     badge.textContent = "Paused";
     badge.className = "pipeline-badge paused";
     btn.textContent = "Resume Guardrail";
     btn.className = "resume-btn";
+    if (ringLabel) ringLabel.textContent = "Paused";
+    if (ringFill) {
+      ringFill.style.stroke = "var(--signal-review)";
+      ringFill.style.strokeDashoffset = 241.3; // 20% filled
+    }
   } else {
     badge.textContent = "Active";
     badge.className = "pipeline-badge active";
     btn.textContent = "Pause Guardrail";
     btn.className = "pause-btn";
+    if (ringLabel) ringLabel.textContent = "Active";
+    if (ringFill) {
+      ringFill.style.stroke = "var(--accent)";
+      ringFill.style.strokeDashoffset = 30.2; // 90% filled
+    }
   }
 }
+
 
 async function loadPipelineStatus() {
   try {
