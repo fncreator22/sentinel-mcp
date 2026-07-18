@@ -68,15 +68,16 @@ async function checkApiStatus() {
     const res = await fetch(`${API_BASE}/health`);
     const data = await res.json();
     el.textContent = "API online";
-    el.className = "api-status online";
+    el.className = "api-badge online";
     authBar.classList.toggle("hidden", !data.auth_required || !!SENTINEL_KEY);
     if (data.project_root) {
       projectRootPath = data.project_root;
       renderMcpConfig();
     }
   } catch (e) {
-    el.textContent = "API offline — start it with: uvicorn api.main:app --port 8000";
-    el.className = "api-status offline";
+    el.textContent = "API offline";
+    el.title = "Start API: uvicorn api.main:app --port 8000";
+    el.className = "api-badge";
   }
 }
 
@@ -180,42 +181,23 @@ async function loadFeed() {
 }
 
 function updateStats(allow, review, block, rules, classifier, llm, total) {
-  // Update counts
-  document.getElementById("countAllow").textContent = allow;
-  document.getElementById("countReview").textContent = review;
-  document.getElementById("countBlock").textContent = block;
+  // Helper to safely update an element
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const setW   = (id, w)   => { const el = document.getElementById(id); if (el) el.style.width = w; };
 
-  document.getElementById("countRules").textContent = rules;
-  document.getElementById("countClassifier").textContent = classifier;
-  document.getElementById("countLlm").textContent = llm;
+  setTxt("countBlock",      block);
+  setTxt("countRules",      rules);
+  setTxt("countClassifier", classifier);
+  setTxt("countLlm",        llm);
 
   if (total > 0) {
-    // Calculate percentages
-    const pctAllow = (allow / total) * 100;
-    const pctReview = (review / total) * 100;
-    const pctBlock = (block / total) * 100;
-
-    const pctRules = (rules / total) * 100;
-    const pctClassifier = (classifier / total) * 100;
-    const pctLlm = (llm / total) * 100;
-
-    // Update widths
-    document.getElementById("barAllow").style.width = `${pctAllow}%`;
-    document.getElementById("barReview").style.width = `${pctReview}%`;
-    document.getElementById("barBlock").style.width = `${pctBlock}%`;
-
-    document.getElementById("barRules").style.width = `${pctRules}%`;
-    document.getElementById("barClassifier").style.width = `${pctClassifier}%`;
-    document.getElementById("barLlm").style.width = `${pctLlm}%`;
+    setW("barRules",      `${(rules / total) * 100}%`);
+    setW("barClassifier", `${(classifier / total) * 100}%`);
+    setW("barLlm",        `${(llm / total) * 100}%`);
   } else {
-    // Reset widths
-    document.getElementById("barAllow").style.width = "0%";
-    document.getElementById("barReview").style.width = "0%";
-    document.getElementById("barBlock").style.width = "0%";
-
-    document.getElementById("barRules").style.width = "0%";
-    document.getElementById("barClassifier").style.width = "0%";
-    document.getElementById("barLlm").style.width = "0%";
+    setW("barRules",      "0%");
+    setW("barClassifier", "0%");
+    setW("barLlm",        "0%");
   }
 }
 
