@@ -315,6 +315,7 @@ async function loadModelConfig() {
     document.querySelector(`input[name="providerChoice"][value="${data.active_provider}"]`).checked = true;
     setProviderPanelVisibility(data.active_provider);
 
+    document.getElementById("ollamaBaseUrl").value = data.local.ollama_base_url || "http://localhost:11434";
     document.getElementById("apiProviderSelect").value = data.api.provider;
     document.getElementById("apiBaseUrl").value = data.api.base_url;
     document.getElementById("apiModelName").value = data.api.model;
@@ -332,7 +333,7 @@ document.getElementById("saveModelSettings").addEventListener("click", async () 
   const payload = {
     active_provider: providerChoice,
     local: {
-      ollama_base_url: "http://localhost:11434",
+      ollama_base_url: document.getElementById("ollamaBaseUrl").value.trim() || "http://localhost:11434",
       selected_model: selectedLocal ? selectedLocal.value : null,
     },
     api: {

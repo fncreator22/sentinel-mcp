@@ -122,6 +122,13 @@
         <!-- Local model panel -->
         <div id="localModelPanel" class="provider-panel">
           <div id="connectivityBadge" class="connectivity-badge local">No internet required — model runs entirely on this machine</div>
+          
+          <div style="margin-bottom: 1.5rem;">
+            <label for="ollamaBaseUrl">Ollama Base URL</label>
+            <input type="text" id="ollamaBaseUrl" placeholder="http://localhost:11434" style="width: 100%; margin-top: 4px;" />
+            <p class="hint small" style="margin-top: 4px;">If running Sentinel inside a Docker container, change this to <code>http://host.docker.internal:11434</code> to connect to your host machine's Ollama.</p>
+          </div>
+
           <h3>Detected local models</h3>
           <p class="hint small">Sentinel automatically looks for models you've already pulled with Ollama. Nothing to type by hand.</p>
           <div id="localModelStatus" class="status-line"></div>
