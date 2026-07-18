@@ -249,6 +249,13 @@ In the Sentinel dashboard, go to **Export and Share** and click **Copy Config to
 
 A complete annotated example config file is also included at `claude_mcp_config_example.json`.
 
+### Rapid Connection Guide (Thread Modal)
+
+To simplify client integration, the dashboard features a **Connect** utility in the top breadcrumb header:
+1. Click the **Connect** button at the top right of the dashboard.
+2. A modal overlay will display the local API server URL (`http://localhost:8000`) and a timeline of instructions.
+3. Follow the sequence: copy the pre-built configuration JSON from the **Export & Share** tab, paste it into your editor/terminal settings, and start the coding assistant. Live review decisions will begin streaming to the **Overview feed** instantly.
+
 ### Available MCP tools
 
 | Tool | Description |

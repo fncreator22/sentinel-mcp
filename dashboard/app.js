@@ -590,6 +590,48 @@ document.getElementById("pauseResumeBtn").addEventListener("click", async () => 
   }
 });
 
+// ---- Connect Modal (Timeline Guide) ------------------------------------------
+const connectModal = document.getElementById("connectModal");
+const connectModalBtn = document.getElementById("connectModalBtn");
+const closeConnectModal = document.getElementById("closeConnectModal");
+const copyEndpointBtn = document.getElementById("copyEndpointBtn");
+
+if (connectModalBtn && connectModal) {
+  connectModalBtn.addEventListener("click", () => {
+    connectModal.classList.remove("hidden");
+  });
+}
+
+if (closeConnectModal && connectModal) {
+  closeConnectModal.addEventListener("click", () => {
+    connectModal.classList.add("hidden");
+  });
+  
+  // Close when clicking outside content area
+  connectModal.addEventListener("click", (e) => {
+    if (e.target === connectModal) {
+      connectModal.classList.add("hidden");
+    }
+  });
+}
+
+if (copyEndpointBtn) {
+  copyEndpointBtn.addEventListener("click", () => {
+    const val = document.getElementById("connectEndpointVal").value;
+    const status = document.getElementById("copyEndpointStatus");
+    
+    navigator.clipboard.writeText(val).then(() => {
+      status.className = "save-status ok";
+      status.textContent = "Copied!";
+      setTimeout(() => { status.textContent = ""; }, 2000);
+    }).catch(err => {
+      status.className = "save-status error";
+      status.textContent = "Failed: " + err;
+      setTimeout(() => { status.textContent = ""; }, 2000);
+    });
+  });
+}
+
 // ---- Init ------------------------------------------------------------------------
 function loadEverything() {
   checkApiStatus();
@@ -604,3 +646,4 @@ function loadEverything() {
 
 setProviderPanelVisibility("local");
 loadEverything();
+

@@ -50,6 +50,27 @@
   <!-- ===== MAIN CONTENT ===== -->
   <div class="main-layout">
 
+    <!-- Top Header / Breadcrumbs (Vercel Style) -->
+    <header class="top-header">
+      <div class="breadcrumbs">
+        <svg class="breadcrumb-brand" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" fill="currentColor"/>
+        </svg>
+        <span class="sep">/</span>
+        <span class="crumb">sentinel-mcp</span>
+        <span class="badge-free">FREE</span>
+        <span class="sep">/</span>
+        <span class="crumb">fncreator22's Project</span>
+        <span class="sep">/</span>
+        <span class="crumb-branch">main</span>
+        <span class="badge-prod">PRODUCTION</span>
+      </div>
+      <button class="connect-btn" id="connectModalBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="plug-icon"><path d="M18 8h1a4 4 0 0 1 0 8h-1M6 8H5a4 4 0 0 0 0 8h1M2 12h4M18 12h4M9 8v8M15 8v8"/></svg>
+        <span>Connect</span>
+      </button>
+    </header>
+
     <!-- Auth key bar -->
     <div id="authBar" class="auth-bar hidden">
       <span>This Sentinel instance requires a key to make changes.</span>
@@ -385,6 +406,60 @@
     </section>
 
   </div><!-- /main-layout -->
+
+  <!-- ===== CONNECT MODAL (Thread Guide UI) ===== -->
+  <div id="connectModal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h3>Connect to Sentinel</h3>
+        <button id="closeConnectModal" class="close-btn">&times;</button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="modal-section">
+          <label>Sentinel API Endpoint</label>
+          <div class="copy-input-group">
+            <input type="text" id="connectEndpointVal" value="http://localhost:8000" readonly />
+            <button id="copyEndpointBtn" class="primary-btn copy-btn">Copy</button>
+            <span id="copyEndpointStatus" class="save-status"></span>
+          </div>
+        </div>
+
+        <div class="timeline-guide">
+          <h4>Integration Guide (Timeline)</h4>
+          
+          <div class="timeline-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h5>Retrieve MCP Integration Config</h5>
+              <p>Go to the <strong>Export &amp; Share</strong> tab in the sidebar and click <strong>Copy Config to Clipboard</strong> to copy the pre-built JSON settings block. It automatically detects and formats your local project directory path.</p>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h5>Paste into Client Settings</h5>
+              <p>Paste the copied JSON configuration into your preferred MCP client settings file:</p>
+              <ul>
+                <li><strong>Claude Code:</strong> Paste into <code>~/.claude/claude_code_config.json</code> or project-level <code>.claude/settings.json</code>.</li>
+                <li><strong>Claude Desktop:</strong> Paste into <code>%APPDATA%\Claude\claude_desktop_config.json</code>.</li>
+                <li><strong>Cursor / VS Code:</strong> Add under <strong>MCP Settings</strong> via the graphical UI or config file.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="timeline-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h5>Verify Connection</h5>
+              <p>Launch your coding assistant. It will auto-connect to your running Sentinel daemon and review commands. Verdict logs will begin streaming to the <strong>Overview feed</strong> in real time!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
