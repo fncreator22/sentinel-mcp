@@ -11,8 +11,8 @@
    resolve in milliseconds, so only genuinely ambiguous actions pay the
    cost of an LLM call in Stage 3.
 3. **Be explainable.** Every decision — whichever stage made it — comes
-   with a plain-English reason and is written to the audit log. A judge,
-   or a future maintainer, should be able to look at any decision and
+   with a plain-English reason and is written to the audit log. Any
+   future maintainer should be able to look at any decision and
    understand exactly why it was made.
 4. **Be editable without redeploying.** The dashboard writes directly to
    `config/rules.yaml` and the API hot-reloads the rule engine in place
@@ -21,8 +21,8 @@
 
 ## Why TF-IDF + Logistic Regression for Stage 2 (not a neural net)
 
-- It is trained in seconds on a laptop CPU, no GPU required — good for a
-  hackathon timeline.
+- It is trained in seconds on a laptop CPU, no GPU required — no
+  specialized hardware or cloud infrastructure needed.
 - `model.pkl` + `vectorizer.pkl` together are a few hundred KB, trivial to
   publish on Hugging Face.
 - The coefficients are directly inspectable — `train/train_classifier.py`
@@ -107,10 +107,10 @@ dashboard track multiple MCP servers, but deliberately do NOT proxy rule or
 model management to external servers yet. Today it's a registry + live
 health board: register a server's name and endpoint, and the dashboard
 pings `{endpoint}/health` to show connected/unreachable/error. This is
-enough to demo "the dashboard is built to manage more than one guardrail
-instance" honestly, without overclaiming remote administration that isn't
-built yet. Full remote config push/pull is the natural next step once
-there's a second real server to build and test against.
+sufficient to establish that the dashboard is architected for multi-instance
+management, without overclaiming remote administration that isn't built yet.
+Full remote config push/pull is the natural next step once there's a second
+real server to build and test against.
 
 ## Why `/export` masks secrets instead of omitting the whole model section
 
