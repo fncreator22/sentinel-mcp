@@ -1,0 +1,14 @@
+# Core pipeline
+scikit-learn>=1.4
+pyyaml>=6.0
+
+# API
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.6
+
+# MCP server (stretch goal)
+mcp>=1.0
+
+# Testing
+pytest>=8.0

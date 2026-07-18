@@ -1,0 +1,56 @@
+{
+  "_readme": "Copy the 'sentinel' block into your Claude Code MCP config file.",
+  "_config_locations": {
+    "Claude Desktop (Windows)": "%APPDATA%\\Claude\\claude_desktop_config.json",
+    "Claude Desktop (Mac)": "~/Library/Application Support/Claude/claude_desktop_config.json",
+    "Claude Code CLI": "~/.claude/claude_code_config.json or per-project .claude/settings.json"
+  },
+  "_instructions": [
+    "1. Start Sentinel first: run start.bat (or: uvicorn api.main:app --port 8000)",
+    "2. Add the 'sentinel' entry below into your MCP client's mcpServers config",
+    "3. Update the 'cwd' path to match where sentinel is installed on your machine",
+    "4. Restart Claude Code / Claude Desktop after editing the config",
+    "5. The 'review_action' tool will now be available in your agent sessions"
+  ],
+
+  "mcpServers": {
+    "sentinel": {
+      "command": "python",
+      "args": ["mcp_server/server.py"],
+      "cwd": "C:\\Users\\sr2ma\\Downloads\\MCP server\\test 4\\sentinel\\sentinel",
+      "_note": "Change 'cwd' to the absolute path of your sentinel project root"
+    }
+  },
+
+  "_tools_exposed": {
+    "review_action": {
+      "description": "Review a proposed agent action BEFORE executing it. Returns ALLOW, BLOCK, or REVIEW.",
+      "args": {
+        "action_text": "The exact command or action the agent wants to run (required)",
+        "user_task": "The user's original high-level task/goal, for scope-creep detection (optional)"
+      },
+      "example_call": {
+        "action_text": "rm -rf /tmp/build",
+        "user_task": "Clean up build artifacts"
+      },
+      "example_response": {
+        "verdict": "ALLOW",
+        "decided_by_stage": "classifier",
+        "reason": "Classifier predicted 'safe' with 89% confidence.",
+        "log_id": 42
+      }
+    },
+    "get_recent_decisions": {
+      "description": "Return the most recent Sentinel review decisions from the audit log.",
+      "args": {
+        "limit": "Number of recent decisions to return (default: 20)"
+      }
+    }
+  },
+
+  "_alternative_http_mode": {
+    "_note": "If you prefer HTTP over stdio, you can also call the FastAPI directly",
+    "review_endpoint": "POST http://localhost:8000/review",
+    "example_curl": "curl -X POST http://localhost:8000/review -H 'Content-Type: application/json' -d '{\"action_text\": \"rm -rf /\", \"user_task\": \"clean up files\"}'"
+  }
+}

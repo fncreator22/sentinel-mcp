@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Sentinel runtime data
+sentinel.db
+sentinel_core/model_artifacts/*.pkl
+config/model_config.local.yaml
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Env
+.env

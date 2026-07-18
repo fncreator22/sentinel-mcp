@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sentinel — AI Guardrail Agent</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234d9fff' d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🛡️ Sentinel</h1>
+    <p class="subtitle">Guardrail agent — live decisions, rules, and models, all in one place</p>
+    <div class="api-status" id="apiStatus">Checking API...</div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="rules">Rules</button>
+    <button class="tab-btn" data-tab="models">Model Settings</button>
+    <button class="tab-btn" data-tab="servers">MCP Servers</button>
+    <button class="tab-btn" data-tab="share">Export &amp; Share</button>
+  </nav>
+
+  <!-- Auth key bar — only shows itself if the API reports auth is required -->
+  <div id="authBar" class="auth-bar hidden">
+    <span>This Sentinel instance requires a key to make changes.</span>
+    <input type="password" id="authKeyInput" placeholder="Paste your X-Sentinel-Key" />
+    <button id="saveAuthKey">Remember for this session</button>
+  </div>
+
+  <main>
+
+    <!-- ================= OVERVIEW TAB ================= -->
+    <section class="tab-panel active" id="tab-overview">
+      <div class="panel">
+        <div class="pipeline-status-bar">
+          <h2 style="margin:0">Pipeline Status</h2>
+          <div class="pipeline-controls">
+            <span id="pipelineBadge" class="pipeline-badge active">Active</span>
+            <button id="pauseResumeBtn" class="pause-btn">Pause Guardrail</button>
+          </div>
+        </div>
+        <h2>Try an action</h2>
+        <p class="hint">Type anything an AI agent might run — a shell command, a git operation, a SQL statement — and see exactly which stage of Sentinel decides its fate, and why.</p>
+        <form id="reviewForm">
+          <label for="userTask">User's original task (helps Stage 3 judge scope creep)</label>
+          <input type="text" id="userTask" placeholder="e.g. Refactor the login module" />
+
+          <label for="actionText">Action to review</label>
+          <input type="text" id="actionText" placeholder="e.g. rm -rf / OR git status" required />
+
+          <button type="submit">Review Action</button>
+        </form>
+        <div id="reviewResult" class="review-result hidden"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Live Decision Feed</h2>
+        <p class="hint">Every action Sentinel has reviewed — from any connected MCP server — shows up here in real time.</p>
+        <div class="feed-controls">
+          <button id="refreshFeed">Refresh</button>
+          <label><input type="checkbox" id="autoRefresh" checked> Auto-refresh (3s)</label>
+        </div>
+        <div id="decisionFeed" class="feed"></div>
+      </div>
+    </section>
+
+    <!-- ================= RULES TAB ================= -->
+    <section class="tab-panel" id="tab-rules">
+      <div class="panel wide">
+        <h2>Rule Editor <span class="tag stage">Stage 1 — instant, no model</span></h2>
+        <p class="hint">These patterns are checked first, before any model runs. A <strong>block</strong> match always stops the action immediately. An <strong>allow</strong> match approves it immediately. Anything that matches neither gets passed on to the trained classifier (Stage 2). Changes save live — no restart needed.</p>
+
+        <div class="rule-columns">
+          <div class="rule-group">
+            <h3>Block Patterns <span class="tag block">hard stop</span></h3>
+            <p class="hint small">Actions matching any of these are refused outright, no matter what.</p>
+            <div id="blockPatterns"></div>
+            <button class="add-btn" id="addBlockPattern">+ Add block pattern</button>
+          </div>
+
+          <div class="rule-group">
+            <h3>Allow Patterns <span class="tag allow">known safe</span></h3>
+            <p class="hint small">Actions matching any of these skip straight through, saving classifier/model time.</p>
+            <div id="allowPatterns"></div>
+            <button class="add-btn" id="addAllowPattern">+ Add allow pattern</button>
+          </div>
+        </div>
+
+        <label for="confidenceThreshold">Classifier confidence threshold — how sure Stage 2 must be before trusting its own verdict. Below this, the action escalates to the Stage 3 model.</label>
+        <input type="range" id="confidenceThreshold" min="0.5" max="0.99" step="0.01" value="0.75" />
+        <span id="confidenceValue">0.75</span>
+
+        <button id="saveRules" class="save-btn">Save Rules</button>
+        <div id="saveStatus" class="save-status"></div>
+      </div>
+    </section>
+
+    <!-- ================= MODEL SETTINGS TAB ================= -->
+    <section class="tab-panel" id="tab-models">
+      <div class="panel wide">
+        <h2>Model Settings <span class="tag stage">Stage 3 — only used for ambiguous actions</span></h2>
+        <p class="hint">Stage 3 only runs when Stage 1's rules didn't match and Stage 2's classifier wasn't confident enough. You have two options for what powers it — pick whichever fits your setup.</p>
+
+        <div class="provider-toggle">
+          <label class="provider-option">
+            <input type="radio" name="providerChoice" value="local" checked />
+            <div>
+              <strong>Use a local model</strong>
+              <p class="hint small">Runs entirely on this machine via <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a>. Nothing leaves your computer. Free, but you need to install Ollama and pull a model first.</p>
+            </div>
+          </label>
+          <label class="provider-option">
+            <input type="radio" name="providerChoice" value="api" />
+            <div>
+              <strong>Use an API model</strong>
+              <p class="hint small">Calls a hosted model over the internet (OpenAI, Anthropic, or any compatible endpoint). Faster to set up, but the action text and task description are sent to that provider, and it isn't free.</p>
+            </div>
+          </label>
+        </div>
+
+        <!-- Local model panel -->
+        <div id="localModelPanel" class="provider-panel">
+          <div id="connectivityBadge" class="connectivity-badge local">No internet required — model runs entirely on this machine</div>
+          <h3>Detected local models</h3>
+          <p class="hint small">Sentinel automatically looks for models you've already pulled with Ollama. Nothing to type by hand.</p>
+          <div id="localModelStatus" class="status-line"></div>
+          <div id="localModelList" class="model-list"></div>
+          <p class="hint small">Don't see your model, or the list is empty? Install Ollama, then pull a model and refresh this page:</p>
+          <pre class="code-block">ollama pull llama3.2</pre>
+          <button id="refreshLocalModels">Refresh detected models</button>
+        </div>
+
+        <!-- API model panel -->
+        <div id="apiModelPanel" class="provider-panel hidden">
+          <div id="connectivityBadgeApi" class="connectivity-badge api">Requires active internet connection to reach the API provider</div>
+          <h3>API provider</h3>
+          <label for="apiProviderSelect">Provider</label>
+          <select id="apiProviderSelect">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="custom">Custom (OpenAI-compatible endpoint)</option>
+          </select>
+
+          <label for="apiBaseUrl">Base URL</label>
+          <input type="text" id="apiBaseUrl" placeholder="https://api.openai.com/v1" />
+
+          <label for="apiModelName">Model name</label>
+          <input type="text" id="apiModelName" placeholder="gpt-4o-mini" />
+
+          <label for="apiKeyInput">API key <span id="apiKeyStatus" class="hint small"></span></label>
+          <input type="password" id="apiKeyInput" placeholder="Paste your API key (leave blank to keep the saved one)" />
+          <p class="hint small">Your key is stored only in <code>config/model_config.local.yaml</code> on this machine, is never written to the audit log, and is never sent back to this dashboard in full — only the last 4 characters are ever shown.</p>
+        </div>
+
+        <div class="model-actions">
+          <button id="saveModelSettings" class="save-btn">Save Model Settings</button>
+          <button id="testModelSettings">Test Connection</button>
+        </div>
+        <div id="modelSaveStatus" class="save-status"></div>
+        <div id="modelTestStatus" class="save-status"></div>
+      </div>
+    </section>
+
+    <!-- ================= MCP SERVERS TAB ================= -->
+    <section class="tab-panel" id="tab-servers">
+      <div class="panel wide">
+        <h2>MCP Servers</h2>
+        <p class="hint">This dashboard is built to manage more than one guardrail server over time. <strong>Sentinel (this project) is always registered and fully functional.</strong> You can register other MCP-compatible servers below to keep an eye on their status from one place — full remote rule/model management for external servers is on the roadmap.</p>
+
+        <div id="serverList" class="server-list"></div>
+
+        <h3>Register another server</h3>
+        <form id="addServerForm" class="inline-form">
+          <input type="text" id="serverName" placeholder="Display name" required />
+          <input type="text" id="serverEndpoint" placeholder="https://example.com" required />
+          <input type="text" id="serverDescription" placeholder="Description (optional)" />
+          <button type="submit">Register</button>
+        </form>
+        <div id="serverStatus" class="save-status"></div>
+      </div>
+    </section>
+
+    <!-- ================= EXPORT TAB ================= -->
+    <section class="tab-panel" id="tab-share">
+      <div class="panel wide">
+        <h2>Export &amp; Share</h2>
+        <p class="hint">Download this Sentinel instance's setup — rules, model provider choice, and registered servers — as a JSON file you can hand to a teammate or check into a wiki. <strong>API keys are never included</strong>, only whether one is set.</p>
+        <button id="exportBtn" class="save-btn">Download config bundle</button>
+        <pre id="exportPreview" class="code-block export-preview"></pre>
+      </div>
+
+      <div class="panel wide" style="margin-top: 2rem;">
+        <h2>MCP Client Integration Config</h2>
+        <p class="hint">Copy this JSON block directly into your Claude Desktop, Claude Code, Cursor, or CodeX settings file to register Sentinel as an active guardrail server.</p>
+        <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+          <button id="copyMcpConfigBtn" class="save-btn">📋 Copy Config to Clipboard</button>
+          <span id="copyMcpStatus" class="save-status" style="margin: 0; display: inline;"></span>
+        </div>
+        <pre id="mcpConfigPreview" class="code-block export-preview">Loading integration config...</pre>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

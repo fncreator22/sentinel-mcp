@@ -1,0 +1,137 @@
+# =============================================================================
+# Sentinel — Stage 1 Rule Engine Config
+# =============================================================================
+# This file is read by sentinel_core/rules_engine.py on every action review.
+# It is also READ + WRITTEN by the dashboard, so a non-technical user can
+# add/remove patterns live without touching Python code.
+#
+# HOW MATCHING WORKS:
+# - Each pattern is a plain substring OR a regex (regex: true) matched
+#   case-insensitively against the incoming action text.
+# - block_patterns are checked FIRST. Any match -> instant BLOCK, stop.
+# - allow_patterns are checked SECOND. Any match -> instant ALLOW, stop.
+# - If nothing matches either list -> action is passed to Stage 2 (classifier).
+#
+# WHY THIS ORDER: blocking dangerous things always wins, even if an action
+# text also happens to contain something that looks "safe."
+# =============================================================================
+
+block_patterns:
+  # --- Destructive filesystem operations ---
+  - pattern: "rm -rf /"
+    reason: "Recursive force-delete of root or a broad path — irreversible data loss."
+    regex: false
+
+  - pattern: "rm -rf ~"
+    reason: "Recursive force-delete of home directory."
+    regex: false
+
+  - pattern: '\brm\s+-rf\s+[./~]'
+    reason: "Recursive force-delete targeting current dir, parent, or home."
+    regex: true
+
+  - pattern: "mkfs"
+    reason: "Formats a filesystem/disk — irreversible."
+    regex: false
+
+  - pattern: ":(){:|:&};:"
+    reason: "Classic fork bomb — will crash the machine."
+    regex: false
+
+  # --- Credential / secret exfiltration ---
+  - pattern: '\bcat\s+.*(\.env|id_rsa|credentials|secrets\.)'
+    reason: "Reading a secrets/credentials file — likely exfiltration attempt."
+    regex: true
+
+  - pattern: "curl.*-d.*@.*\\.env"
+    reason: "Uploading a secrets file to a remote endpoint."
+    regex: true
+
+  # --- Version control danger zone ---
+  - pattern: "git push --force"
+    reason: "Force push can overwrite remote history and destroy others' work."
+    regex: false
+
+  - pattern: "git reset --hard"
+    reason: "Hard reset discards uncommitted local changes irreversibly."
+    regex: false
+
+  - pattern: "git clean -fdx"
+    reason: "Force-deletes all untracked files, including ignored ones."
+    regex: false
+
+  # --- Permission / privilege changes ---
+  - pattern: "chmod 777"
+    reason: "Grants world read/write/execute — serious security regression."
+    regex: false
+
+  - pattern: "chmod -R 777"
+    reason: "Recursively grants world read/write/execute."
+    regex: false
+
+  - pattern: "sudo su"
+    reason: "Privilege escalation to root shell."
+    regex: false
+
+  # --- Package / system level danger ---
+  - pattern: "pip install .* --break-system-packages"
+    reason: "Bypasses system package protections — flag for review, not auto-block in dev, "
+    regex: true
+
+  - pattern: "DROP TABLE"
+    reason: "Destructive SQL — irreversible data loss."
+    regex: false
+
+  - pattern: "DROP DATABASE"
+    reason: "Destructive SQL — irreversible data loss."
+    regex: false
+
+  - pattern: "DELETE FROM .* WHERE 1=1"
+    reason: "Unconditional delete across a whole table."
+    regex: true
+
+allow_patterns:
+  # --- Safe, read-only, or clearly reversible actions ---
+  - pattern: "git status"
+    reason: "Read-only."
+    regex: false
+
+  - pattern: "git diff"
+    reason: "Read-only."
+    regex: false
+
+  - pattern: "git log"
+    reason: "Read-only."
+    regex: false
+
+  - pattern: "git add"
+    reason: "Stages changes only, does not modify history."
+    regex: false
+
+  - pattern: "^git commit"
+    reason: "Local commit, reversible, does not touch remote."
+    regex: true
+
+  - pattern: "ls "
+    reason: "Read-only directory listing."
+    regex: false
+
+  - pattern: "^cat "
+    reason: "Read-only file view (non-secret files; secrets are caught above)."
+    regex: true
+
+  - pattern: "npm run test"
+    reason: "Running tests is safe and expected."
+    regex: false
+
+  - pattern: "pytest"
+    reason: "Running tests is safe and expected."
+    regex: false
+
+  - pattern: "mkdir "
+    reason: "Creates a directory — non-destructive."
+    regex: false
+
+# Confidence threshold below which Stage 2 (classifier) hands off to
+# Stage 3 (local LLM reviewer) instead of returning its own verdict directly.
+classifier_confidence_threshold: 0.75

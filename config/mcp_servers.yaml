@@ -1,0 +1,6 @@
+servers:
+- name: Sentinel (this project)
+  type: self
+  endpoint: http://localhost:8000
+  description: The guardrail agent in this repo. Always available while the API is
+    running.
