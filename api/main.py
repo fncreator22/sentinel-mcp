@@ -55,6 +55,7 @@ RUN WITH:
 """
 
 import os
+import sys
 from typing import Optional, List
 
 import yaml
@@ -151,11 +152,12 @@ def health():
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     project_root_normalized = project_root.replace("\\", "/")
     return {
-        "status": "ok",
-        "auth_required": bool(SENTINEL_API_KEY),
-        "project_root": project_root_normalized,
-        "paused": orchestrator.paused,
-    }
+    "status": "ok",
+    "auth_required": bool(SENTINEL_API_KEY),
+    "project_root": project_root_normalized,
+    "python_executable": sys.executable,
+    "paused": orchestrator.paused,
+}
 
 
 @app.get("/status")
