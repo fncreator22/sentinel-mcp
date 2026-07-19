@@ -306,13 +306,74 @@ const API_PROVIDER_PRESETS = {
   custom: { base_url: "", model: "" },
 };
 
+// ---- Model dropdown list per provider ------------------------------------------
+const PROVIDER_MODELS = {
+  openai: [
+    { id: "gpt-4o",               label: "GPT-4o — recommended" },
+    { id: "gpt-4o-mini",          label: "GPT-4o Mini — fastest / cheapest" },
+    { id: "gpt-4-turbo",          label: "GPT-4 Turbo" },
+    { id: "gpt-3.5-turbo",        label: "GPT-3.5 Turbo" },
+  ],
+  anthropic: [
+    { id: "claude-3-5-sonnet-20240620", label: "Claude 3.5 Sonnet — recommended" },
+    { id: "claude-3-5-haiku-20241022",  label: "Claude 3.5 Haiku — fastest" },
+    { id: "claude-3-opus-20240229",     label: "Claude 3 Opus — most capable" },
+    { id: "claude-3-sonnet-20240229",   label: "Claude 3 Sonnet" },
+    { id: "claude-3-haiku-20240307",    label: "Claude 3 Haiku" },
+  ],
+  gemini: [
+    { id: "gemini-1.5-flash-latest",    label: "Gemini 1.5 Flash — recommended" },
+    { id: "gemini-1.5-pro-latest",      label: "Gemini 1.5 Pro — most capable" },
+    { id: "gemini-2.0-flash-exp",       label: "Gemini 2.0 Flash (experimental)" },
+    { id: "gemini-1.0-pro",             label: "Gemini 1.0 Pro" },
+  ],
+  custom: [],
+};
+
+const PROVIDER_DEFAULTS = {
+  openai:    "gpt-4o-mini",
+  anthropic: "claude-3-5-sonnet-20240620",
+  gemini:    "gemini-1.5-flash-latest",
+  custom:    "",
+};
+
+function populateModelList(provider) {
+  const datalist = document.getElementById("modelNameList");
+  const hint = document.getElementById("modelNameHint");
+  if (!datalist) return;
+
+  datalist.innerHTML = "";
+  const models = PROVIDER_MODELS[provider] || [];
+  models.forEach(m => {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.label = m.label;
+    datalist.appendChild(opt);
+  });
+
+  const def = PROVIDER_DEFAULTS[provider];
+  if (hint) {
+    hint.textContent = def
+      ? `Auto-select will use: ${def}`
+      : "Enter a model name for this provider.";
+  }
+}
+
 document.getElementById("apiProviderSelect").addEventListener("change", (e) => {
   const preset = API_PROVIDER_PRESETS[e.target.value];
   if (preset) {
     document.getElementById("apiBaseUrl").value = preset.base_url;
     document.getElementById("apiModelName").value = preset.model;
   }
+  populateModelList(e.target.value);
 });
+
+// "✕ Auto" button — clear the model name so the backend auto-selects
+document.getElementById("clearModelName")?.addEventListener("click", () => {
+  document.getElementById("apiModelName").value = "";
+  document.getElementById("apiModelName").focus();
+});
+
 
 async function loadLocalModels() {
   const statusEl = document.getElementById("localModelStatus");
@@ -385,12 +446,18 @@ async function loadModelConfig() {
     }
 
     document.getElementById("ollamaBaseUrl").value = data.local.ollama_base_url || "http://localhost:11434";
-    document.getElementById("apiProviderSelect").value = data.api.provider;
+
+    const providerVal = data.api.provider || "openai";
+    document.getElementById("apiProviderSelect").value = providerVal;
     document.getElementById("apiBaseUrl").value = data.api.base_url;
     document.getElementById("apiModelName").value = data.api.model;
     document.getElementById("apiKeyStatus").textContent = data.api.api_key_set
-      ? `(saved key ending in ${data.api.api_key_masked?.slice(-4) || "????"})`
+      ? `(saved key ending in ${data.api.api_key_masked?.slice(-4) || "????"})` 
       : "(no key saved yet)";
+
+    // Seed the model datalist for the current provider
+    populateModelList(providerVal);
+
   } catch (err) { console.error("Could not load model config:", err); }
 }
 

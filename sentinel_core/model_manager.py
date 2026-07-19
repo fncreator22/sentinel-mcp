@@ -60,11 +60,20 @@ DEFAULT_CONFIG = {
 # Sensible defaults per API provider, so the dashboard can prefill the
 # base URL the moment a user picks a provider from a dropdown.
 API_PROVIDER_PRESETS = {
-    "openai": {"base_url": "https://api.openai.com/v1", "model": "gpt-4o-mini"},
-    "anthropic": {"base_url": "https://api.anthropic.com/v1", "model": "claude-sonnet-4-5"},
-    "gemini": {"base_url": "https://generativelanguage.googleapis.com/v1beta", "model": "gemini-1.5-flash"},
-    "custom": {"base_url": "", "model": ""},
+    "openai":    {"base_url": "https://api.openai.com/v1",                         "model": "gpt-4o-mini"},
+    "anthropic": {"base_url": "https://api.anthropic.com/v1",                      "model": "claude-3-5-sonnet-20240620"},
+    "gemini":    {"base_url": "https://generativelanguage.googleapis.com/v1beta",   "model": "gemini-1.5-flash-latest"},
+    "custom":    {"base_url": "", "model": ""},
 }
+
+# The guaranteed-working default model for each provider.
+# Used as an automatic fallback when the configured model field is blank/None.
+PROVIDER_DEFAULT_MODELS: Dict[str, str] = {
+    "openai":    "gpt-4o-mini",
+    "anthropic": "claude-3-5-sonnet-20240620",
+    "gemini":    "gemini-1.5-flash-latest",
+}
+
 
 
 # ---- Config load / save ----------------------------------------------------
@@ -370,11 +379,18 @@ def get_active_provider():
             "No API key configured yet. Open the dashboard's Model Settings "
             "panel, choose a provider, and paste in an API key."
         )
-    if api.get("provider") == "anthropic":
-        return AnthropicProvider(model=api["model"], base_url=api["base_url"], api_key=api["api_key"])
-    if api.get("provider") == "gemini":
-        return GeminiProvider(model=api["model"], base_url=api["base_url"], api_key=api["api_key"])
-    return OpenAICompatibleProvider(model=api["model"], base_url=api["base_url"], api_key=api["api_key"])
+
+    provider_name = api.get("provider", "openai")
+
+    # Auto-select the best known-working model if the user left it blank.
+    model = api.get("model") or PROVIDER_DEFAULT_MODELS.get(provider_name, "gpt-4o-mini")
+
+    if provider_name == "anthropic":
+        return AnthropicProvider(model=model, base_url=api["base_url"], api_key=api["api_key"])
+    if provider_name == "gemini":
+        return GeminiProvider(model=model, base_url=api["base_url"], api_key=api["api_key"])
+    return OpenAICompatibleProvider(model=model, base_url=api["base_url"], api_key=api["api_key"])
+
 
 
 def test_active_provider() -> Dict[str, Any]:

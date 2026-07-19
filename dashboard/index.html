@@ -448,9 +448,26 @@
           </div>
 
           <div class="input-stack select-stack">
-            <label for="apiModelName">Model name</label>
-            <input type="text" id="apiModelName" placeholder="gpt-4o-mini" />
+            <label for="apiModelName">Model name
+              <span class="hint small" style="font-weight:400;"> — or leave blank to auto-select the recommended model</span>
+            </label>
+            <div class="model-name-wrap" style="display:flex;gap:8px;align-items:center;">
+              <input
+                type="text"
+                id="apiModelName"
+                list="modelNameList"
+                placeholder="Auto-select (leave blank) or type / pick from list"
+                autocomplete="off"
+                style="flex:1;"
+              />
+              <button type="button" id="clearModelName" class="secondary-btn" style="white-space:nowrap;padding:8px 12px;" title="Clear and use auto-select">✕ Auto</button>
+            </div>
+            <datalist id="modelNameList">
+              <!-- populated by app.js based on provider selection -->
+            </datalist>
+            <p class="hint small" id="modelNameHint" style="margin-top:4px;"></p>
           </div>
+
 
           <div class="input-stack select-stack">
             <label for="apiKeyInput">API key <span id="apiKeyStatus" class="hint small"></span></label>
