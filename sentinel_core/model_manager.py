@@ -32,8 +32,10 @@ there for them).
 """
 
 import json
+import time
 import urllib.request
 import urllib.error
+import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -440,12 +442,50 @@ def test_active_provider() -> Dict[str, Any]:
     the dashboard's 'Test Connection' button can give a real yes/no."""
     try:
         provider = get_active_provider()
+        t0 = time.time()
         response = provider.generate("Reply with the single word: OK")
-        return {"ok": True, "message": f"Provider responded: {response.strip()[:200]}"}
+        latency_ms = int((time.time() - t0) * 1000)
+        return {"ok": True, "message": f"Provider responded: {response.strip()[:200]}", "latency_ms": latency_ms}
     except ProviderError as e:
-        return {"ok": False, "message": str(e)}
+        return {"ok": False, "message": str(e), "latency_ms": None}
     except Exception as e:
-        return {"ok": False, "message": f"Unexpected error: {e}"}
+        return {"ok": False, "message": f"Unexpected error: {e}", "latency_ms": None}
+
+
+def test_specific_model(provider: str, base_url: str, api_key: str, model_id: str) -> Dict[str, Any]:
+    """
+    Test a specific model by sending a trivial prompt using saved credentials.
+    Used by the dashboard's per-model test buttons.
+
+    Returns:
+        {"ok": bool, "model_id": str, "message": str, "latency_ms": int|None}
+    """
+    model_id = (model_id or "").strip()
+    if not model_id:
+        return {"ok": False, "model_id": model_id, "message": "Model ID cannot be empty.", "latency_ms": None}
+    if " " in model_id:
+        return {
+            "ok": False, "model_id": model_id,
+            "message": f"Invalid model ID '{model_id}' — model IDs cannot contain spaces. Pick from the dropdown.",
+            "latency_ms": None,
+        }
+    try:
+        if provider == "anthropic":
+            prov = AnthropicProvider(model=model_id, base_url=base_url, api_key=api_key)
+        elif provider == "gemini":
+            prov = GeminiProvider(model=model_id, base_url=base_url, api_key=api_key)
+        else:
+            prov = OpenAICompatibleProvider(model=model_id, base_url=base_url, api_key=api_key)
+
+        t0 = time.time()
+        response = prov.generate("Reply with the single word: OK", timeout=15)
+        latency_ms = int((time.time() - t0) * 1000)
+        snippet = response.strip()[:80].replace("\n", " ")
+        return {"ok": True, "model_id": model_id, "message": f"Connected ({latency_ms} ms). Reply: {snippet}", "latency_ms": latency_ms}
+    except ProviderError as e:
+        return {"ok": False, "model_id": model_id, "message": str(e), "latency_ms": None}
+    except Exception as e:
+        return {"ok": False, "model_id": model_id, "message": f"{type(e).__name__}: {e}", "latency_ms": None}
 
 
 def list_available_models(provider: str, base_url: str, api_key: str) -> Dict[str, Any]:
@@ -479,8 +519,11 @@ def list_available_models(provider: str, base_url: str, api_key: str) -> Dict[st
                 data = json.loads(resp.read().decode("utf-8"))
 
             # OpenAI schema: { "data": [ {"id": "gpt-4o", ...}, ... ] }
-            ids = sorted(m["id"] for m in data.get("data", []) if m.get("id"))
-            return {"ok": True, "models": ids, "error": None}
+            details = sorted(
+                [{"id": m["id"], "display_name": m.get("id", m["id"])} for m in data.get("data", []) if m.get("id")],
+                key=lambda x: x["id"],
+            )
+            return {"ok": True, "models": [d["id"] for d in details], "model_details": details, "error": None}
 
         # ------------------------------------------------------------------ #
         # Anthropic                                                            #
@@ -497,30 +540,52 @@ def list_available_models(provider: str, base_url: str, api_key: str) -> Dict[st
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
 
-            # Anthropic schema: { "data": [ {"id": "claude-3-5-sonnet-...", ...} ] }
-            ids = sorted(m["id"] for m in data.get("data", []) if m.get("id"))
-            return {"ok": True, "models": ids, "error": None}
+            # Anthropic schema: { "data": [ {"id": "claude-3-5-sonnet-...", "display_name": "...", ...} ] }
+            details = sorted(
+                [{"id": m["id"], "display_name": m.get("display_name", m["id"])} for m in data.get("data", []) if m.get("id")],
+                key=lambda x: x["id"],
+            )
+            return {"ok": True, "models": [d["id"] for d in details], "model_details": details, "error": None}
 
         # ------------------------------------------------------------------ #
-        # Google Gemini                                                        #
+        # Google Gemini — with full pagination support                        #
         # ------------------------------------------------------------------ #
         if provider == "gemini":
-            url = f"{base_url}/models?key={api_key}"
-            with urllib.request.urlopen(url, timeout=10) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-
-            # Gemini schema: { "models": [ {"name": "models/gemini-1.5-flash-latest", ...} ] }
             def _strip_prefix(n: str) -> str:
                 return n.split("/")[-1] if "/" in n else n
 
-            ids = sorted(
-                _strip_prefix(m["name"])
-                for m in data.get("models", [])
-                if m.get("name") and "generateContent" in m.get("supportedGenerationMethods", [])
-            )
-            return {"ok": True, "models": ids, "error": None}
+            all_details: List[Dict[str, str]] = []
+            page_token: Optional[str] = None
 
-        return {"ok": False, "models": [], "error": f"Unknown provider: {provider}"}
+            # Fetch all pages (Gemini paginates large model lists)
+            for _ in range(20):  # safety cap at 20 pages (~2000 models)
+                paged_url = f"{base_url}/models?key={urllib.parse.quote(api_key, safe='')}&pageSize=100"
+                if page_token:
+                    paged_url += f"&pageToken={urllib.parse.quote(page_token, safe='')}"
+                with urllib.request.urlopen(paged_url, timeout=10) as resp:
+                    page_data = json.loads(resp.read().decode("utf-8"))
+
+                for m in page_data.get("models", []):
+                    if m.get("name") and "generateContent" in m.get("supportedGenerationMethods", []):
+                        model_id = _strip_prefix(m["name"])
+                        all_details.append({
+                            "id": model_id,
+                            "display_name": m.get("displayName", model_id),
+                        })
+
+                page_token = page_data.get("nextPageToken")
+                if not page_token:
+                    break
+
+            all_details.sort(key=lambda x: x["id"])
+            return {
+                "ok": True,
+                "models": [d["id"] for d in all_details],
+                "model_details": all_details,
+                "error": None,
+            }
+
+        return {"ok": False, "models": [], "model_details": [], "error": f"Unknown provider: {provider}"}
 
     except urllib.error.HTTPError as e:
         body = ""

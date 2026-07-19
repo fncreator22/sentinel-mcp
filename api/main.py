@@ -305,16 +305,56 @@ def get_available_models():
         # No key saved yet — return the static preset list so the UI
         # still shows sensible options before the key is entered.
         presets = model_manager.PROVIDER_MODELS_STATIC.get(provider, [])
+        preset_details = [{"id": m, "display_name": m} for m in presets]
         return {
             "ok": False,
             "provider": provider,
             "models": presets,
+            "model_details": preset_details,
             "error": "No API key saved yet. Save your key first, then models will be fetched live from the API.",
         }
 
     result = model_manager.list_available_models(provider, base_url, api_key)
     result["provider"] = provider
+    # Ensure model_details exists even from older code paths
+    if "model_details" not in result:
+        result["model_details"] = [{"id": m, "display_name": m} for m in result.get("models", [])]
     return result
+
+
+class TestSpecificModelRequest(BaseModel):
+    model_id: str
+
+
+@app.post("/models/test-specific")
+def test_specific_model(req: TestSpecificModelRequest):
+    """
+    Test a specific model ID using the currently saved API credentials.
+    Used by the dashboard's per-model Test buttons.
+
+    Returns:
+        {"ok": bool, "model_id": str, "message": str, "latency_ms": int | null}
+    """
+    config = model_manager.load_config()
+    api = config.get("api", {})
+    provider = api.get("provider", "openai")
+    base_url  = api.get("base_url", "")
+    api_key   = api.get("api_key")
+
+    if not api_key:
+        return {
+            "ok": False,
+            "model_id": req.model_id,
+            "message": "No API key saved. Save your settings first.",
+            "latency_ms": None,
+        }
+
+    return model_manager.test_specific_model(
+        provider=provider,
+        base_url=base_url,
+        api_key=api_key,
+        model_id=req.model_id,
+    )
 
 
 # ---- MCP server registry ----------------------------------------------------------

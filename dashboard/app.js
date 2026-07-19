@@ -361,7 +361,9 @@ const PROVIDER_DEFAULTS = {
   custom:    "",
 };
 
-// ---- Live model fetching ---------------------------------------------------
+// ---- Live model fetching + Model Tester panel --------------------------------
+let _isTesting = false;  // global stop flag for "Test All"
+
 async function fetchAvailableModels(provider) {
   const datalist   = document.getElementById("modelNameList");
   const hint       = document.getElementById("modelNameHint");
@@ -369,7 +371,6 @@ async function fetchAvailableModels(provider) {
 
   if (!datalist) return;
 
-  // Show loading state
   if (hint) { hint.textContent = "⏳ Fetching available models from the API…"; hint.className = "hint small"; }
   if (fetchBtn) { fetchBtn.disabled = true; fetchBtn.textContent = "Fetching…"; }
 
@@ -377,33 +378,34 @@ async function fetchAvailableModels(provider) {
     const res  = await apiFetch("/models/available");
     const data = await res.json();
 
-    // Populate datalist
-    datalist.innerHTML = "";
-    const modelList = (data.models && data.models.length > 0)
-      ? data.models
-      : (PROVIDER_MODELS_FALLBACK[provider] || []);
+    // Use model_details (id + display_name) if available, else fall back to plain ids
+    const details = data.model_details || (data.models || []).map(id => ({ id, display_name: id }));
+    const liveModels = details.length > 0;
 
-    modelList.forEach(id => {
-      const opt   = document.createElement("option");
-      opt.value   = id;
+    // Populate datalist for the text input autocomplete
+    datalist.innerHTML = "";
+    const idsToList = liveModels ? details.map(d => d.id) : (PROVIDER_MODELS_FALLBACK[provider] || []);
+    idsToList.forEach(id => {
+      const opt = document.createElement("option");
+      opt.value = id;
       datalist.appendChild(opt);
     });
 
-    if (data.ok && data.models && data.models.length > 0) {
+    if (data.ok && liveModels) {
       if (hint) {
-        hint.textContent = `✅ ${data.models.length} models available on your account. Pick one or leave blank to auto-select.`;
+        hint.textContent = `✅ ${details.length} models found on your account. Pick one, or use 🧪 Model Tester below to find the best one.`;
         hint.className = "hint small ok";
       }
+      populateModelTester(details);
     } else {
-      // Key not set yet or error — show static fallback
       const reason = data.error || "Save your API key first to see live models.";
       if (hint) {
         hint.textContent = `ℹ️ Showing suggested models. ${reason}`;
         hint.className = "hint small warn";
       }
+      document.getElementById("modelTesterSection")?.classList.add("hidden");
     }
   } catch (err) {
-    // Network error — populate with static fallback silently
     const fallback = PROVIDER_MODELS_FALLBACK[provider] || [];
     datalist.innerHTML = "";
     fallback.forEach(id => {
@@ -412,18 +414,137 @@ async function fetchAvailableModels(provider) {
       datalist.appendChild(opt);
     });
     if (hint) {
-      hint.textContent = `ℹ️ Could not reach API — showing suggested models. ${friendlyError(err, "Model fetch")}`;
+      hint.textContent = `ℹ️ Could not reach API — showing suggestions. ${friendlyError(err, "Model fetch")}`;
       hint.className = "hint small warn";
     }
+    document.getElementById("modelTesterSection")?.classList.add("hidden");
   } finally {
     if (fetchBtn) { fetchBtn.disabled = false; fetchBtn.textContent = "↻ Refresh"; }
-    const def = PROVIDER_DEFAULTS[provider];
-    // Only update hint if still showing default text
-    if (def && hint && hint.textContent === "") {
-      hint.textContent = `Auto-select will use: ${def}`;
-    }
   }
 }
+
+// ---- Model Tester panel -------------------------------------------------------
+function populateModelTester(details) {
+  const section  = document.getElementById("modelTesterSection");
+  const listEl   = document.getElementById("modelTesterList");
+  if (!section || !listEl) return;
+
+  section.classList.remove("hidden");
+  listEl.innerHTML = "";
+
+  details.forEach(({ id, display_name }) => {
+    const item = document.createElement("div");
+    item.className = "model-test-item";
+    item.dataset.modelId = id;
+
+    item.innerHTML = `
+      <div class="model-test-info">
+        <span class="model-id" title="${escapeAttr(id)}">${escapeHtml(id)}</span>
+        ${display_name !== id ? `<span class="model-display-name">${escapeHtml(display_name)}</span>` : ""}
+      </div>
+      <div class="model-test-status" id="status-${escapeAttr(id)}">
+        <span class="status-icon">—</span>
+        <span class="status-text">Not tested</span>
+      </div>
+      <div class="model-test-actions">
+        <button class="test-model-btn" data-model-id="${escapeAttr(id)}">Test</button>
+        <button class="use-model-btn hidden" data-model-id="${escapeAttr(id)}">✓ Use This</button>
+      </div>
+    `;
+    listEl.appendChild(item);
+  });
+
+  // Wire individual Test buttons
+  listEl.querySelectorAll(".test-model-btn").forEach(btn => {
+    btn.addEventListener("click", () => testSingleModel(btn.dataset.modelId, btn));
+  });
+
+  // Wire "Use This" buttons
+  listEl.querySelectorAll(".use-model-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.getElementById("apiModelName").value = btn.dataset.modelId;
+      document.getElementById("apiModelName").scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+}
+
+async function testSingleModel(modelId, triggerBtn) {
+  const statusDiv = document.getElementById(`status-${modelId}`);
+  const item      = document.querySelector(`.model-test-item[data-model-id="${CSS.escape(modelId)}"]`);
+  const useBtn    = item?.querySelector(".use-model-btn");
+  if (!statusDiv) return;
+
+  // Loading state
+  statusDiv.className = "model-test-status status-testing";
+  statusDiv.innerHTML = `<span class="status-icon">⏳</span><span class="status-text">Testing…</span>`;
+  if (triggerBtn) triggerBtn.disabled = true;
+
+  try {
+    const res  = await apiFetch("/models/test-specific", {
+      method: "POST",
+      body: JSON.stringify({ model_id: modelId }),
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      statusDiv.className = "model-test-status status-ok";
+      statusDiv.innerHTML = `
+        <span class="status-icon">✅</span>
+        <span class="status-text">Connected</span>
+        ${data.latency_ms != null ? `<span class="latency-badge">${data.latency_ms} ms</span>` : ""}
+      `;
+      if (useBtn) useBtn.classList.remove("hidden");
+    } else {
+      statusDiv.className = "model-test-status status-fail";
+      // Truncate long error messages
+      const msg = (data.message || "Failed").substring(0, 90);
+      statusDiv.innerHTML = `<span class="status-icon">❌</span><span class="status-text" title="${escapeAttr(data.message || '')}">${escapeHtml(msg)}</span>`;
+      if (useBtn) useBtn.classList.add("hidden");
+    }
+  } catch (err) {
+    statusDiv.className = "model-test-status status-fail";
+    statusDiv.innerHTML = `<span class="status-icon">❌</span><span class="status-text">${escapeHtml(friendlyError(err, "Test failed"))}</span>`;
+  } finally {
+    if (triggerBtn) triggerBtn.disabled = false;
+  }
+}
+
+async function testAllModels() {
+  _isTesting = true;
+  const testAllBtn  = document.getElementById("testAllModelsBtn");
+  const stopBtn     = document.getElementById("stopTestingBtn");
+  const progressEl  = document.getElementById("testerProgress");
+  const items       = document.querySelectorAll(".model-test-item");
+
+  if (testAllBtn) testAllBtn.disabled = true;
+  if (stopBtn)   stopBtn.classList.remove("hidden");
+  if (progressEl) progressEl.classList.remove("hidden");
+
+  let done = 0;
+  for (const item of items) {
+    if (!_isTesting) break;
+    const modelId  = item.dataset.modelId;
+    const testBtn  = item.querySelector(".test-model-btn");
+    if (progressEl) progressEl.textContent = `Testing ${done + 1} / ${items.length} — ${modelId}`;
+    await testSingleModel(modelId, testBtn);
+    done++;
+    // Small pause to avoid hammering the API
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  _isTesting = false;
+  if (testAllBtn) testAllBtn.disabled = false;
+  if (stopBtn)   stopBtn.classList.add("hidden");
+  if (progressEl) {
+    const okCount = document.querySelectorAll(".model-test-status.status-ok").length;
+    progressEl.textContent = `Done — ${okCount} of ${done} models connected successfully.`;
+  }
+}
+
+document.getElementById("testAllModelsBtn")?.addEventListener("click", testAllModels);
+document.getElementById("stopTestingBtn")?.addEventListener("click", () => { _isTesting = false; });
+
+
 
 // ---- Static suggested models helper -----------------------------------------
 function showSuggestedModels(provider) {

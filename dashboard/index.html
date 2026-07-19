@@ -483,6 +483,22 @@
         </div>
         <div id="modelSaveStatus" class="save-status"></div>
         <div id="modelTestStatus" class="save-status"></div>
+
+        <!-- ---- Model Tester Panel (shown after live models are fetched) ---- -->
+        <div id="modelTesterSection" class="model-tester-section hidden">
+          <div class="model-tester-header">
+            <h4>🧪 Model Tester</h4>
+            <p>Test each model individually to see which ones work with your API key. Green = connected. Red = not available or insufficient permissions.</p>
+            <div class="tester-controls">
+              <button id="testAllModelsBtn">⚡ Test All</button>
+              <button id="stopTestingBtn" class="hidden">⛔ Stop</button>
+            </div>
+          </div>
+          <div id="modelTesterList" class="model-tester-list">
+            <!-- Populated dynamically by app.js after model list is fetched -->
+          </div>
+          <div id="testerProgress" class="tester-progress hidden"></div>
+        </div>
       </div>
     </section>
 
