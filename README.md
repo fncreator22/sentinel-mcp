@@ -15,6 +15,18 @@ Supports **both Stdio (local process) and SSE (web endpoint)** MCP transports fo
 
 ---
 
+## 🎬 Demo
+
+> A short walkthrough of the problem, the pipeline, and the dashboard.
+
+<video src="https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.mp4" controls width="100%"></video>
+
+> **Can't see the video?** [▶ Download and watch it directly](https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.mp4)
+
+---
+
+
+
 ## The Problem
 
 Autonomous LLM coding agents can execute shell commands, modify files, push to remote repositories, and make network requests. This power comes with real risk: a single poorly-scoped prompt or a hallucinated action can cause data loss, expose credentials, or make irreversible changes to a production system.
