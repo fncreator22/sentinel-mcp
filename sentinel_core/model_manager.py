@@ -256,11 +256,20 @@ class OpenAICompatibleProvider:
         self.api_key = api_key
 
     def generate(self, prompt: str, timeout: int = 30) -> str:
+        model_clean = (self.model or "").strip()
+        if not model_clean:
+            raise ProviderError("Model name is empty. Please enter or select a valid model name.")
+        if " " in model_clean:
+            raise ProviderError(
+                f"Invalid model name '{self.model}'. Model names cannot contain spaces. "
+                f"Please choose a valid model identifier (e.g., 'gpt-4o-mini') from the dropdown rather than a descriptive name."
+            )
         payload = {
-            "model": self.model,
+            "model": model_clean,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.1,
         }
+
         try:
             req = urllib.request.Request(
                 f"{self.base_url}/chat/completions",
@@ -296,11 +305,20 @@ class GeminiProvider:
         self.api_key = api_key
 
     def generate(self, prompt: str, timeout: int = 30) -> str:
-        url = f"{self.base_url}/models/{self.model}:generateContent"
+        model_clean = (self.model or "").strip()
+        if not model_clean:
+            raise ProviderError("Model name is empty. Please enter or select a valid model name.")
+        if " " in model_clean:
+            raise ProviderError(
+                f"Invalid model name '{self.model}'. Model names cannot contain spaces. "
+                f"Please choose a valid model identifier (e.g., 'gemini-1.5-flash-latest') from the dropdown rather than a descriptive name."
+            )
+        url = f"{self.base_url}/models/{model_clean}:generateContent"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "generationConfig": {"temperature": 0.1, "maxOutputTokens": 500},
         }
+
         try:
             req = urllib.request.Request(
                 url,
@@ -335,11 +353,20 @@ class AnthropicProvider:
         self.api_key = api_key
 
     def generate(self, prompt: str, timeout: int = 30) -> str:
+        model_clean = (self.model or "").strip()
+        if not model_clean:
+            raise ProviderError("Model name is empty. Please enter or select a valid model name.")
+        if " " in model_clean:
+            raise ProviderError(
+                f"Invalid model name '{self.model}'. Model names cannot contain spaces. "
+                f"Please choose a valid model identifier (e.g., 'claude-3-5-sonnet-20240620') from the dropdown rather than a descriptive name."
+            )
         payload = {
-            "model": self.model,
+            "model": model_clean,
             "max_tokens": 500,
             "messages": [{"role": "user", "content": prompt}],
         }
+
         try:
             req = urllib.request.Request(
                 f"{self.base_url}/messages",

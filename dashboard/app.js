@@ -425,13 +425,34 @@ async function fetchAvailableModels(provider) {
   }
 }
 
+// ---- Static suggested models helper -----------------------------------------
+function showSuggestedModels(provider) {
+  const datalist = document.getElementById("modelNameList");
+  const hint     = document.getElementById("modelNameHint");
+  if (!datalist) return;
+
+  datalist.innerHTML = "";
+  const fallback = PROVIDER_MODELS_FALLBACK[provider] || [];
+  fallback.forEach(id => {
+    const opt = document.createElement("option");
+    opt.value = id;
+    datalist.appendChild(opt);
+  });
+
+  if (hint) {
+    const def = PROVIDER_DEFAULTS[provider];
+    hint.textContent = `ℹ️ Enter and save your API key to fetch live models. Default fallback: ${def || "None"}`;
+    hint.className = "hint small warn";
+  }
+}
+
 document.getElementById("apiProviderSelect").addEventListener("change", (e) => {
   const preset = API_PROVIDER_PRESETS[e.target.value];
   if (preset) {
     document.getElementById("apiBaseUrl").value  = preset.base_url;
     document.getElementById("apiModelName").value = preset.model;
   }
-  fetchAvailableModels(e.target.value);
+  showSuggestedModels(e.target.value);
 });
 
 // "✕ Auto" button — clear the model name so the backend auto-selects
@@ -439,6 +460,7 @@ document.getElementById("clearModelName")?.addEventListener("click", () => {
   document.getElementById("apiModelName").value = "";
   document.getElementById("apiModelName").focus();
 });
+
 
 // "↻ Refresh" button — re-fetch models on demand
 document.getElementById("fetchModelsBtn")?.addEventListener("click", () => {
