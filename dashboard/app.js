@@ -303,7 +303,10 @@ const API_PROVIDER_PRESETS = {
   openai: { base_url: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   anthropic: { base_url: "https://api.anthropic.com/v1", model: "claude-sonnet-4-5" },
   gemini: { base_url: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-1.5-flash" },
-  custom: { base_url: "", model: "" },// ---- Friendly error messages -----------------------------------------------
+  custom: { base_url: "", model: "" }
+};
+
+// ---- Friendly error messages -----------------------------------------------
 /**
  * Convert any raw error/response into a clean, user-facing string.
  * Never shows raw stack traces or API internals to the user.

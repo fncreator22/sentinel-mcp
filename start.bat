@@ -66,18 +66,18 @@ if not exist "sentinel_core\model_artifacts\model.pkl" (
 
 REM ---- Step 5: Start the FastAPI API server in a new window -----------------------
 echo [START] Starting Sentinel API server on http://localhost:8000 ...
-start "Sentinel API (port 8000)" cmd /k "cd /d "%~dp0" && venv\Scripts\python.exe -m uvicorn api.main:app --port 8000 --reload"
+start "Sentinel API (port 8000)" cmd /k venv\Scripts\python.exe -m uvicorn api.main:app --port 8000 --reload
 
 REM Wait a moment for the API to start before opening the dashboard
 echo [WAIT]  Waiting 4 seconds for API to come up...
-timeout /t 4 /nobreak >nul
+ping 127.0.0.1 -n 5 >nul
 
 REM ---- Step 6: Start the dashboard HTTP server in a new window --------------------
 echo [START] Starting dashboard server on http://localhost:8080 ...
-start "Sentinel Dashboard (port 8080)" cmd /k "cd /d "%~dp0\dashboard" && python -m http.server 8080"
+start "Sentinel Dashboard (port 8080)" /D dashboard cmd /k python -m http.server 8080
 
 REM Wait a moment for the dashboard server to start
-timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 3 >nul
 
 REM ---- Step 7: Open browser -------------------------------------------------------
 echo [START] Opening dashboard in your browser...
@@ -85,7 +85,7 @@ start "" "http://localhost:8080"
 
 REM ---- Step 8: Start the SSE MCP server in a new window --------------------------
 echo [START] Starting Sentinel SSE MCP server on http://localhost:8002 ...
-start "Sentinel SSE MCP (port 8002)" cmd /k "cd /d "%~dp0" && venv\Scripts\python.exe mcp_server\sse_server.py"
+start "Sentinel SSE MCP (port 8002)" cmd /k venv\Scripts\python.exe mcp_server\sse_server.py
 
 echo.
 echo  ====================================================
