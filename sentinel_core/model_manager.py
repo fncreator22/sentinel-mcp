@@ -32,13 +32,88 @@ there for them).
 """
 
 import json
+import re
 import time
 import urllib.request
 import urllib.error
 import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
+
+# ---- In-memory model cache (survives for the lifetime of the server process) --
+# Maps  "<provider>:<last8ofkey>" -> model_id that last worked successfully.
+# Avoids re-discovering the working model on every request.
+_MODEL_CACHE: Dict[str, str] = {}
+
+def _cache_key(provider: str, api_key: str) -> str:
+    tail = api_key[-8:] if len(api_key) >= 8 else api_key
+    return f"{provider}:{tail}"
+
+
+def _clean_error(raw: str) -> str:
+    """
+    Convert any raw ProviderError / API response into a short, user-friendly
+    message.  Never shows JSON blobs or stack traces.
+    """
+    low = raw.lower()
+    if "quota" in low or "resource_exhausted" in low or "429" in raw:
+        return "API quota exceeded for this key. Check your billing plan or try again later."
+    if "401" in raw or "invalid api key" in low or "unauthorized" in low:
+        return "Invalid API key — please check and re-enter your key."
+    if "403" in raw or "forbidden" in low:
+        return "Access denied. Your key may not have permission for this operation."
+    if "404" in raw or "not found" in low:
+        return "API endpoint not found. Check your Base URL in Model Settings."
+    if "no internet" in low or "getaddrinfo" in low or "name resolution" in low:
+        return "No internet connection. Check your network and try again."
+    if "timed out" in low or "timeout" in low:
+        return "Connection timed out. Try again in a moment."
+    if "model name is empty" in low:
+        return "No model selected. The system will auto-select one — click Test Connection."
+    # Strip JSON blobs — anything between { } that is long
+    cleaned = re.sub(r'\{.*\}', '', raw, flags=re.DOTALL).strip(': \n')
+    if not cleaned:
+        return raw[:200] if len(raw) > 200 else raw
+    return cleaned[:200] if len(cleaned) > 200 else cleaned
+
+
+def _preference_order(provider: str) -> List[str]:
+    """Ordered list of model IDs to try for each provider, most preferred first."""
+    if provider == "gemini":
+        return [
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-001",
+            "gemini-1.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro-latest",
+            "gemini-1.5-pro-001",
+            "gemini-1.5-pro",
+            "gemini-2.5-pro",
+            "gemini-2.0-flash-lite",
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-exp",
+        ]
+    if provider == "openai":
+        return ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
+    if provider == "anthropic":
+        return [
+            "claude-3-5-haiku-20241022",
+            "claude-3-5-sonnet-20240620",
+            "claude-3-haiku-20240307",
+            "claude-3-opus-20240229",
+        ]
+    return []
+
+
+def _is_quota_error(msg: str) -> bool:
+    """True when the error indicates a per-model quota / rate-limit issue."""
+    low = msg.lower()
+    return any(x in low for x in [
+        "quota", "resource_exhausted", "429", "rate limit",
+        "requests per", "tokens per",
+    ])
 
 import yaml
 
@@ -286,15 +361,13 @@ class OpenAICompatibleProvider:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body["choices"][0]["message"]["content"]
         except urllib.error.HTTPError as e:
-            raise ProviderError(f"API returned HTTP {e.code}: {e.read().decode(errors='ignore')}")
+            raw = e.read().decode(errors="ignore")
+            raise ProviderError(_clean_error(f"{e.code} {raw}"))
         except (urllib.error.URLError, TimeoutError, ConnectionRefusedError, KeyError, IndexError) as e:
             err_str = str(e).lower()
             if any(x in err_str for x in ["getaddrinfo", "name resolution", "nodename", "network unreachable", "no route"]):
-                raise ProviderError(
-                    "No internet connection. Cannot reach the OpenAI API. "
-                    "Check your network and try again, or switch to a local model."
-                )
-            raise ProviderError(f"Could not complete API request: {e}")
+                raise ProviderError("No internet connection. Check your network.")
+            raise ProviderError(_clean_error(str(e)))
 
 
 class GeminiProvider:
@@ -336,15 +409,13 @@ class GeminiProvider:
                 # Gemini response: candidates[0].content.parts[0].text
                 return body["candidates"][0]["content"]["parts"][0]["text"]
         except urllib.error.HTTPError as e:
-            raise ProviderError(f"Gemini API returned HTTP {e.code}: {e.read().decode(errors='ignore')}")
+            raw = e.read().decode(errors="ignore")
+            raise ProviderError(_clean_error(f"{e.code} {raw}"))
         except (urllib.error.URLError, TimeoutError, ConnectionRefusedError, KeyError, IndexError) as e:
             err_str = str(e).lower()
             if any(x in err_str for x in ["getaddrinfo", "name resolution", "nodename", "network unreachable", "no route"]):
-                raise ProviderError(
-                    "No internet connection. Cannot reach the Gemini API. "
-                    "Check your network connection and try again, or switch to a local model in Model Settings."
-                )
-            raise ProviderError(f"Could not complete Gemini API request: {e}")
+                raise ProviderError("No internet connection. Check your network.")
+            raise ProviderError(_clean_error(str(e)))
 
 
 
@@ -384,75 +455,64 @@ class AnthropicProvider:
                 body = json.loads(resp.read().decode("utf-8"))
                 return "".join(block.get("text", "") for block in body.get("content", []))
         except urllib.error.HTTPError as e:
-            raise ProviderError(f"API returned HTTP {e.code}: {e.read().decode(errors='ignore')}")
+            raw = e.read().decode(errors="ignore")
+            raise ProviderError(_clean_error(f"{e.code} {raw}"))
         except (urllib.error.URLError, TimeoutError, ConnectionRefusedError) as e:
             err_str = str(e).lower()
             if any(x in err_str for x in ["getaddrinfo", "name resolution", "nodename", "network unreachable", "no route"]):
-                raise ProviderError(
-                    "No internet connection. Cannot reach the Anthropic API. "
-                    "Check your network and try again, or switch to a local model."
-                )
-            raise ProviderError(f"Could not complete API request: {e}")
+                raise ProviderError("No internet connection. Check your network.")
+            raise ProviderError(_clean_error(str(e)))
+
+
+# ---- Provider factory helper ---------------------------------------------------
+
+def _make_provider(provider_name: str, model: str, base_url: str, api_key: str):
+    """Instantiate the right provider class for the given settings."""
+    if provider_name == "anthropic":
+        return AnthropicProvider(model=model, base_url=base_url, api_key=api_key)
+    if provider_name == "gemini":
+        return GeminiProvider(model=model, base_url=base_url, api_key=api_key)
+    return OpenAICompatibleProvider(model=model, base_url=base_url, api_key=api_key)
+
+
+def _ranked_models(provider: str, base_url: str, api_key: str) -> List[str]:
+    """
+    Return an ordered list of model IDs to try for the given provider.
+    Preference list first, restricted to models actually available on the key.
+    Falls back to the full preference list if the /models endpoint is unreachable.
+    """
+    prefs = _preference_order(provider)
+    if not api_key:
+        return prefs or [PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")]
+
+    res = list_available_models(provider, base_url, api_key)
+    if res.get("ok") and res.get("models"):
+        available: Set[str] = set(res["models"])
+        # Keep preference order but restrict to models we know exist
+        ordered = [m for m in prefs if m in available]
+        if not ordered:
+            # None of our preferences are available — rank the available ones
+            # by matching substrings we like
+            ordered = sorted(available, key=lambda m: (
+                0 if "flash-lite" in m else
+                1 if "flash" in m else
+                2 if "pro" in m else
+                3
+            ))
+        return ordered or [PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")]
+
+    # /models call failed — return static preference list as best effort
+    return prefs or [PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")]
 
 
 def select_best_model(provider: str, base_url: str, api_key: str) -> str:
-
-    """
-    Queries the live API (if key is set) to find the best available model.
-    Falls back to a guaranteed static default if the API call fails or no key is present.
-    """
-    if not api_key:
-        return PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")
-
-    res = list_available_models(provider, base_url, api_key)
-    if not res.get("ok") or not res.get("models"):
-        return PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")
-
-    models = res["models"]
-
-    # Google Gemini logic
-    if provider == "gemini":
-        # Search in order of preference (preferring newer/stable flash models)
-        for preference in [
-            "gemini-1.5-flash-latest", "gemini-1.5-flash", 
-            "gemini-2.0-flash", "gemini-2.5-flash",
-            "gemini-1.5-pro-latest", "gemini-1.5-pro",
-            "gemini-2.0-flash-exp", "gemini-3.5-flash", 
-            "gemini-3.1-flash-lite"
-        ]:
-            if preference in models:
-                return preference
-        # Fallback search by substrings
-        for m in models:
-            if "flash" in m.lower():
-                return m
-        for m in models:
-            if "pro" in m.lower():
-                return m
-        return models[0] if models else "gemini-1.5-flash-latest"
-
-    # OpenAI logic
-    elif provider == "openai":
-        for preference in ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]:
-            if preference in models:
-                return preference
-        return models[0] if models else "gpt-4o-mini"
-
-    # Anthropic logic
-    elif provider == "anthropic":
-        for preference in [
-            "claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022",
-            "claude-3-opus-20240229", "claude-3-haiku-20240307"
-        ]:
-            if preference in models:
-                return preference
-        for m in models:
-            if "claude-3" in m.lower():
-                return m
-        return models[0] if models else "claude-3-5-sonnet-20240620"
-
-    # Custom or unknown provider: just pick the first available one
-    return models[0] if models else ""
+    """Return the single best model ID for this provider."""
+    # Use cached model if available (set after a successful test)
+    cache_k = _cache_key(provider, api_key) if api_key else None
+    if cache_k and cache_k in _MODEL_CACHE:
+        return _MODEL_CACHE[cache_k]
+    ranked = _ranked_models(provider, base_url, api_key)
+    return ranked[0] if ranked else PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")
 
 
 def get_active_provider():
@@ -468,8 +528,7 @@ def get_active_provider():
         local = config["local"]
         if not local.get("selected_model"):
             raise ProviderError(
-                "No local model selected yet. Open the dashboard's Model "
-                "Settings panel and pick one of your detected Ollama models."
+                "No local model selected yet. Open Model Settings and pick an Ollama model."
             )
         return OllamaProvider(
             model=local["selected_model"],
@@ -480,39 +539,98 @@ def get_active_provider():
     api = config["api"]
     if not api.get("api_key"):
         raise ProviderError(
-            "No API key configured yet. Open the dashboard's Model Settings "
-            "panel, choose a provider, and paste in an API key."
+            "No API key saved. Open Model Settings and paste your key."
         )
 
     provider_name = api.get("provider", "openai")
     base_url = api.get("base_url", "")
     api_key = api.get("api_key")
 
-    # Automatically identify the best model to use
+    # Use cached model if available, otherwise pick best
     model = select_best_model(provider_name, base_url, api_key)
-
-    if provider_name == "anthropic":
-        return AnthropicProvider(model=model, base_url=base_url, api_key=api_key)
-    if provider_name == "gemini":
-        return GeminiProvider(model=model, base_url=base_url, api_key=api_key)
-    return OpenAICompatibleProvider(model=model, base_url=base_url, api_key=api_key)
+    return _make_provider(provider_name, model, base_url, api_key)
 
 
 def test_active_provider() -> Dict[str, Any]:
-    """Sends a trivial prompt through whichever provider is configured, so
-    the dashboard's 'Test Connection' button can give a real yes/no."""
-    try:
-        provider = get_active_provider()
-        t0 = time.time()
-        response = provider.generate("Reply with the single word: OK")
-        latency_ms = int((time.time() - t0) * 1000)
-        # Include the auto-selected model identifier in the test response message
-        model_name = getattr(provider, "model", "unknown")
-        return {"ok": True, "message": f"Connected successfully to model '{model_name}' ({latency_ms} ms). Response: {response.strip()[:100]}"}
-    except ProviderError as e:
-        return {"ok": False, "message": str(e)}
-    except Exception as e:
-        return {"ok": False, "message": f"Unexpected error: {e}"}
+    """
+    Sends a trivial prompt through the configured provider.
+    Automatically tries multiple models when quota / rate-limit errors occur.
+    Never returns raw JSON or API error blobs to the caller.
+    """
+    config = load_config()
+
+    if config["active_provider"] == "local":
+        try:
+            prov = get_active_provider()
+            t0 = time.time()
+            resp = prov.generate("Reply with the single word: OK")
+            ms = int((time.time() - t0) * 1000)
+            return {"ok": True, "message": f"Connected to local model '{prov.model}' ({ms} ms)."}
+        except ProviderError as e:
+            return {"ok": False, "message": _clean_error(str(e))}
+
+    # --- API provider ---
+    api = config.get("api", {})
+    provider_name = api.get("provider", "openai")
+    base_url = api.get("base_url", "")
+    api_key = api.get("api_key", "")
+
+    if not api_key:
+        return {"ok": False, "message": "No API key saved. Open Model Settings and paste your key."}
+
+    # Build the ordered list of models to try
+    cache_k = _cache_key(provider_name, api_key)
+    models_to_try = _ranked_models(provider_name, base_url, api_key)
+
+    # If we have a cached winner, try it first before re-ranking
+    if cache_k in _MODEL_CACHE:
+        cached = _MODEL_CACHE[cache_k]
+        if cached in models_to_try:
+            models_to_try.remove(cached)
+        models_to_try.insert(0, cached)
+
+    last_err = "Could not connect — all models failed."
+    skipped: List[str] = []
+
+    for model_id in models_to_try:
+        try:
+            prov = _make_provider(provider_name, model_id, base_url, api_key)
+            t0 = time.time()
+            resp = prov.generate("Reply with the single word: OK", timeout=20)
+            ms = int((time.time() - t0) * 1000)
+            # Success — cache this model so future requests use it directly
+            _MODEL_CACHE[cache_k] = model_id
+            note = f" (skipped {len(skipped)} model(s) with quota issues)" if skipped else ""
+            return {
+                "ok": True,
+                "message": f"Connected! Model: {model_id} ({ms} ms){note}.",
+            }
+        except ProviderError as e:
+            msg = str(e)
+            if _is_quota_error(msg):
+                skipped.append(model_id)
+                last_err = f"Quota exceeded on {len(skipped)} model(s). Trying next..."
+                continue  # silently move to the next model
+            # Non-quota error (bad key, network, etc.) — stop immediately
+            # Remove bad cache entry if present
+            _MODEL_CACHE.pop(cache_k, None)
+            return {"ok": False, "message": _clean_error(msg)}
+        except Exception as e:
+            _MODEL_CACHE.pop(cache_k, None)
+            return {"ok": False, "message": _clean_error(str(e))}
+
+    # All models quota-exhausted
+    _MODEL_CACHE.pop(cache_k, None)
+    if skipped:
+        return {
+            "ok": False,
+            "message": (
+                f"All {len(skipped)} available model(s) have hit their quota limit. "
+                "This usually means the free tier is exhausted for this API key. "
+                "Check your plan or billing at the provider's dashboard."
+            ),
+        }
+    return {"ok": False, "message": last_err}
 
 
 

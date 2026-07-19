@@ -343,7 +343,30 @@ function friendlyError(err, context) {
 
   // Generic fallback — still clean, no raw internals shown
   if (context) return `${context}. Please check your settings and try again.`;
-  return "Something went wrong. Please check your settings and try again.";
+  return "Something went wrong. Please check your settings.";
+}
+
+/**
+ * Sanitize any backend message string before displaying it to the user.
+ * Strips raw JSON blobs, quota error details, and truncates long strings.
+ */
+function cleanMsg(msg) {
+  if (!msg || typeof msg !== "string") return "Unknown error. Please try again.";
+  const low = msg.toLowerCase();
+  // Already-clean short messages
+  if (msg.length <= 180 && !msg.startsWith("{") && !low.includes('"error"')) return msg;
+  // Detect JSON / quota blobs
+  if (low.includes('"error"') || low.includes('resource_exhausted') || msg.startsWith("{")) {
+    if (low.includes("quota") || low.includes("resource_exhausted") || low.includes("429"))
+      return "API quota exceeded for this key. Check your billing plan or try again later.";
+    if (low.includes("401") || low.includes("unauthorized"))
+      return "Invalid API key — please re-enter your key.";
+    if (low.includes("403")) return "Access denied by the API provider.";
+    if (low.includes("404")) return "API endpoint not found. Check your Base URL.";
+    return "API error — see Model Settings for details.";
+  }
+  // Long but readable — truncate
+  return msg.length > 200 ? msg.slice(0, 197) + "…" : msg;
 }
 
 // ---- Static fallback model lists (shown before API key is saved) -----------
@@ -488,14 +511,13 @@ document.getElementById("saveModelSettings").addEventListener("click", async () 
 document.getElementById("testModelSettings").addEventListener("click", async () => {
   const statusEl = document.getElementById("modelTestStatus");
   statusEl.className   = "save-status";
-  statusEl.textContent = "⏳ Testing connection…";
+  statusEl.textContent = "⏳ Searching for a working model… this may take a few seconds.";
   try {
     const res  = await apiFetch("/models/test", { method: "POST" });
     const data = await res.json();
+    const msg  = cleanMsg(data.message || "");
     statusEl.className   = data.ok ? "save-status ok" : "save-status error";
-    statusEl.textContent = data.ok
-      ? `✅ Connected successfully! ${data.message}`
-      : `❌ Connection test failed: ${data.message}`;
+    statusEl.textContent = data.ok ? `✅ ${msg}` : `❌ ${msg}`;
   } catch (err) {
     statusEl.className   = "save-status error";
     statusEl.textContent = `❌ ${friendlyError(err, "Connection test failed")}`;
