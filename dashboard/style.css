@@ -1781,12 +1781,160 @@ body {
     gap: 16px;
     padding: 16px;
   }
-  .header-nav {
-    overflow-x: auto;
-    width: 100%;
-    justify-content: flex-start;
-  }
+/* =============================================================================
+   Real-Time Active Stage Execution & Duration Visualizers
+   ============================================================================= */
+.stage-card.processing {
+  border-color: rgba(0, 217, 245, 0.6) !important;
+  box-shadow: 0 0 25px rgba(0, 217, 245, 0.25) !important;
+  animation: stagePulse 1.5s infinite ease-in-out;
 }
+
+.stage-card.processing[data-stage="1"] {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 25px rgba(0, 217, 245, 0.35) !important;
+}
+
+.stage-card.processing[data-stage="2"] {
+  border-color: var(--signal-allow) !important;
+  box-shadow: 0 0 25px rgba(0, 230, 118, 0.35) !important;
+}
+
+.stage-card.processing[data-stage="3"] {
+  border-color: #ff3dbe !important;
+  box-shadow: 0 0 25px rgba(255, 61, 190, 0.4) !important;
+}
+
+@keyframes stagePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+
+.stage-active-status {
+  margin: 8px 0;
+  padding: 6px 10px;
+  background: rgba(0, 217, 245, 0.08);
+  border: 1px dashed rgba(0, 217, 245, 0.3);
+  border-radius: 6px;
+}
+
+.active-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.status-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: radarPulse 1s infinite alternate;
+}
+
+.stage-card[data-stage="2"] .status-pulse-dot {
+  background-color: var(--signal-allow);
+  box-shadow: 0 0 10px var(--signal-allow);
+}
+
+.stage-card[data-stage="3"] .status-pulse-dot {
+  background-color: #ff3dbe;
+  box-shadow: 0 0 10px #ff3dbe;
+}
+
+@keyframes radarPulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.3); opacity: 1; }
+}
+
+.status-state-text {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  flex: 1;
+}
+
+.stage-timer-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Active Review Banner above Decision Feed */
+.active-banner {
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(90deg, rgba(0, 217, 245, 0.12), rgba(0, 230, 118, 0.12));
+  border: 1px solid rgba(0, 217, 245, 0.4);
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 217, 245, 0.15);
+  animation: bannerGlow 2s infinite alternate;
+}
+
+@keyframes bannerGlow {
+  0% { border-color: rgba(0, 217, 245, 0.3); }
+  100% { border-color: rgba(0, 230, 118, 0.6); }
+}
+
+.active-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.active-pulse-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--signal-allow);
+  box-shadow: 0 0 10px var(--signal-allow);
+  animation: radarPulse 0.8s infinite alternate;
+}
+
+.active-banner-stage {
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.active-banner-cmd {
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.active-banner-timer {
+  font-weight: 700;
+  color: var(--signal-allow);
+  background: rgba(0, 0, 0, 0.5);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.stage-passed-tag {
+  color: var(--signal-allow);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.stage-escalated-tag {
+  color: var(--signal-review);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
 
 
 

@@ -159,16 +159,30 @@ document.getElementById("reviewForm").addEventListener("submit", async (e) => {
   if (!actionText) return;
 
   resultEl.className = "review-result";
-  resultEl.textContent = "Reviewing...";
+  resultEl.innerHTML = `<span class="pulse-dot"></span> <strong>Evaluating Action...</strong><br>Stage 1 Rules Engine processing...`;
+
+  const startTime = Date.now();
+  const pollInterval = setInterval(async () => {
+    try {
+      const statusRes = await apiFetch("/active_review");
+      const statusData = await statusRes.json();
+      if (statusData.is_active) {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        resultEl.innerHTML = `<span class="pulse-dot"></span> <strong>${escapeHtml(statusData.stage_name)}</strong> (${elapsed}s)<br>Action: <code>${escapeHtml(actionText)}</code>`;
+      }
+    } catch (e) {}
+  }, 250);
 
   try {
     const res = await apiFetch("/review", {
       method: "POST",
       body: JSON.stringify({ action_text: actionText, user_task: userTask }),
     });
+    clearInterval(pollInterval);
     const data = await res.json();
+    const totalSec = ((Date.now() - startTime) / 1000).toFixed(2);
     resultEl.className = `review-result ${data.verdict}`;
-    resultEl.innerHTML = `<strong>${data.verdict}</strong> — decided by <em>${data.decided_by_stage}</em><br>${data.reason}`;
+    resultEl.innerHTML = `<strong>${data.verdict}</strong> — decided by <em>${data.decided_by_stage}</em> (${totalSec}s)<br>${escapeHtml(data.reason)}`;
     
     // Trigger animated cyber threads pulse based on output
     if (typeof triggerPipelineAnimation === "function") {
@@ -177,6 +191,7 @@ document.getElementById("reviewForm").addEventListener("submit", async (e) => {
     
     loadFeed();
   } catch (err) {
+    clearInterval(pollInterval);
     resultEl.className = "review-result BLOCK";
     resultEl.textContent = `Error contacting API: ${err.message}`;
   }
@@ -270,12 +285,108 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+let activePollTimer = null;
+let currentActiveStage = null;
+
+async function checkActiveReviewState() {
+  try {
+    const res = await apiFetch("/active_review");
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const activeBanner = document.getElementById("activeBanner");
+    const bannerStage = document.getElementById("bannerStage");
+    const bannerCmd = document.getElementById("bannerCmd");
+    const bannerTimer = document.getElementById("bannerTimer");
+
+    // Reset processing state on all stage cards
+    [1, 2, 3].forEach(stageNum => {
+      const card = document.getElementById(`stageNode${stageNum}`);
+      const activeEl = document.getElementById(`stageActive${stageNum}`);
+      if (card) card.classList.remove("processing");
+      if (activeEl) activeEl.classList.add("hidden");
+    });
+
+    if (data.is_active) {
+      currentActiveStage = data.current_stage;
+
+      // Update Active Review Banner
+      if (activeBanner) activeBanner.classList.remove("hidden");
+      if (bannerStage) bannerStage.textContent = `${data.stage_name} IN PROGRESS`;
+      if (bannerCmd) bannerCmd.textContent = `Action: "${data.action_text}"`;
+      if (bannerTimer) bannerTimer.textContent = `${data.total_elapsed_sec.toFixed(1)}s`;
+
+      // Update Stage Metadata & Tags (PASSED / ESCALATED / EVALUATING)
+      const meta1 = document.getElementById("stageMeta1");
+      const meta2 = document.getElementById("stageMeta2");
+      const meta3 = document.getElementById("stageMeta3");
+
+      if (data.current_stage === 1) {
+        if (meta1) meta1.innerHTML = `<span class="stage-passed-tag" style="color:var(--accent)">EVALUATING</span>`;
+        if (meta2) meta2.textContent = "CENTRAL";
+        if (meta3) meta3.textContent = "WEST";
+      } else if (data.current_stage === 2) {
+        if (meta1) meta1.innerHTML = `<span class="stage-passed-tag">PASSED ✓</span>`;
+        if (meta2) meta2.innerHTML = `<span class="stage-passed-tag" style="color:var(--signal-allow)">CLASSIFYING</span>`;
+        if (meta3) meta3.textContent = "WEST";
+      } else if (data.current_stage === 3) {
+        if (meta1) meta1.innerHTML = `<span class="stage-passed-tag">PASSED ✓</span>`;
+        if (meta2) meta2.innerHTML = `<span class="stage-escalated-tag">ESCALATED ⚡</span>`;
+        if (meta3) meta3.innerHTML = `<span class="stage-passed-tag" style="color:#ff3dbe">DEEP REVIEW</span>`;
+      }
+
+      // Highlight active stage card
+      const activeCard = document.getElementById(`stageNode${data.current_stage}`);
+      const activeStatusEl = document.getElementById(`stageActive${data.current_stage}`);
+      const timerValEl = document.getElementById(`stageTimer${data.current_stage}`);
+      const stateTextEl = document.getElementById(`stageStateText${data.current_stage}`);
+
+      if (activeCard) activeCard.classList.add("processing");
+      if (activeStatusEl) activeStatusEl.classList.remove("hidden");
+      if (timerValEl) timerValEl.textContent = `${data.stage_elapsed_sec.toFixed(1)}s`;
+
+      const stateLabels = {
+        1: "EVALUATING RULES",
+        2: "RISK CLASSIFIER INFERENCE",
+        3: "LLM REASONING & REVIEW",
+      };
+      if (stateTextEl) stateTextEl.textContent = stateLabels[data.current_stage] || "PROCESSING";
+
+      // Trigger continuous particle flows and wave surges during active processing
+      if (typeof triggerActiveStageAnimation === "function") {
+        triggerActiveStageAnimation(data.current_stage);
+      }
+    } else {
+      if (currentActiveStage !== null) {
+        currentActiveStage = null;
+        loadFeed(); // Refresh decision feed once review completes
+      }
+      if (activeBanner) activeBanner.classList.add("hidden");
+      const meta1 = document.getElementById("stageMeta1");
+      const meta2 = document.getElementById("stageMeta2");
+      const meta3 = document.getElementById("stageMeta3");
+      if (meta1) meta1.textContent = "US-EAST";
+      if (meta2) meta2.textContent = "CENTRAL";
+      if (meta3) meta3.textContent = "WEST";
+    }
+  } catch (e) {
+    // API offline or error
+  }
+}
+
 document.getElementById("refreshFeed").addEventListener("click", loadFeed);
 document.getElementById("autoRefresh").addEventListener("change", (e) => {
   e.target.checked ? startAutoRefresh() : stopAutoRefresh();
 });
-function startAutoRefresh() { stopAutoRefresh(); autoRefreshTimer = setInterval(loadFeed, 3000); }
-function stopAutoRefresh() { if (autoRefreshTimer) clearInterval(autoRefreshTimer); }
+function startAutoRefresh() {
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(loadFeed, 3000);
+  activePollTimer = setInterval(checkActiveReviewState, 300);
+}
+function stopAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  if (activePollTimer) clearInterval(activePollTimer);
+}
 
 // ---- Rule editor -----------------------------------------------------------------
 async function loadRules() {
@@ -1000,23 +1111,7 @@ function animateThreads() {
   // Draw glowing grid lines or tracks
   drawConnectionTracks(threadCtx, w, h);
   
-  // Spawn ambient packet particles
-  ambientTimer++;
-  if (ambientTimer % 45 === 0 && !sentinelPaused) {
-    // Choose random path Stage -> Component -> Terminal
-    const st = threadNodes.stages[Math.floor(Math.random() * threadNodes.stages.length)];
-    const cp = threadNodes.components[Math.floor(Math.random() * threadNodes.components.length)];
-    const tm = threadNodes.terminals[Math.floor(Math.random() * threadNodes.terminals.length)];
-    
-    threadParticles.push(new ThreadParticle(
-      [st, cp, tm],
-      "rgba(0, 217, 245, 0.5)", // ambient cyan
-      0.005 + Math.random() * 0.003,
-      1.5
-    ));
-  }
-  
-  // Update and draw active packets
+  // Update and draw active packets (100% data-driven based on real processing & interaction)
   for (let i = threadParticles.length - 1; i >= 0; i--) {
     const p = threadParticles[i];
     p.draw(threadCtx);
@@ -1075,15 +1170,48 @@ function triggerPipelineAnimation(decidedByStage, verdict) {
   triggerWaveSurge(decidedByStage);
 }
 
+// Spawns continuous active particle streams and wave surges while a stage is actively running
+function triggerActiveStageAnimation(stage) {
+  if (!threadCanvas) return;
+
+  let color = "rgba(0, 217, 245, 0.9)"; // Stage 1 Blue
+  let waveIdx = 0;
+
+  if (stage === 2) {
+    color = "rgba(0, 230, 118, 0.9)"; // Stage 2 Green
+    waveIdx = 1;
+  } else if (stage === 3) {
+    color = "rgba(255, 61, 190, 0.9)"; // Stage 3 Magenta/Cyan
+    waveIdx = 2;
+  }
+
+  // Build particle path based on active stage
+  const path = [threadNodes.stages[0]];
+  if (stage >= 2 && threadNodes.stages[1]) path.push(threadNodes.stages[1]);
+  if (stage >= 3 && threadNodes.stages[2]) path.push(threadNodes.stages[2]);
+  if (threadNodes.components.length > 0) {
+    path.push(threadNodes.components[Math.floor(Math.random() * threadNodes.components.length)]);
+  }
+
+  // Spawn bright active packet particle
+  threadParticles.push(new ThreadParticle(path, color, 0.02, 3.2));
+
+  // Surge matching oscilloscope wave amplitude
+  if (waves && waves[waveIdx]) {
+    waves[waveIdx].amp = Math.max(waves[waveIdx].amp, 35);
+  }
+}
+
 
 // ----- Oscilloscope Wave Canvas (Bottom Monitor) -----
 const waveCanvas = document.getElementById("waveCanvas");
 const waveCtx = waveCanvas ? waveCanvas.getContext("2d") : null;
 
+// Waves rest at flat baseline (1.0) when idle, surging reactively during active processing
 let waves = [
-  { amp: 10, targetAmp: 10, freq: 0.012, speed: 0.015, phase: 0, color: "rgba(59, 130, 246, 0.25)" },  // Rules (Blue)
-  { amp: 14, targetAmp: 14, freq: 0.008, speed: 0.010, phase: 0, color: "rgba(0, 230, 118, 0.25)" }, // Classifier (Green)
-  { amp: 8,  targetAmp: 8,  freq: 0.020, speed: 0.022, phase: 0, color: "rgba(0, 217, 245, 0.25)" }  // LLM (Cyan)
+  { amp: 1.0, targetAmp: 1.0, freq: 0.012, speed: 0.015, phase: 0, color: "rgba(59, 130, 246, 0.25)" },  // Rules (Blue)
+  { amp: 1.0, targetAmp: 1.0, freq: 0.008, speed: 0.010, phase: 0, color: "rgba(0, 230, 118, 0.25)" }, // Classifier (Green)
+  { amp: 1.0, targetAmp: 1.0, freq: 0.020, speed: 0.022, phase: 0, color: "rgba(0, 217, 245, 0.25)" }  // LLM (Cyan)
 ];
 
 function initWaveCanvas() {
@@ -1104,9 +1232,9 @@ function animateWaves() {
   
   // Animate and draw each sine wave
   waves.forEach((wv, idx) => {
-    // Gradual dampening of surge amplitudes back to base
+    // Gradual dampening of surge amplitudes back to baseline idle state
     if (wv.amp > wv.targetAmp) {
-      wv.amp -= 0.35; // decay
+      wv.amp -= 0.45; // decay back to calm resting state
     } else if (wv.amp < wv.targetAmp) {
       wv.amp = wv.targetAmp;
     }
@@ -1123,7 +1251,7 @@ function animateWaves() {
     }
     
     // Add wave stroke
-    waveCtx.strokeStyle = wv.color.replace("0.25", "0.85");
+    waveCtx.strokeStyle = wv.color.replace("0.25", wv.amp > 2 ? "0.85" : "0.35");
     waveCtx.lineWidth = idx === 2 ? 2.5 : 1.5;
     waveCtx.stroke();
     
@@ -1152,6 +1280,16 @@ function triggerWaveSurge(decidedByStage) {
 window.addEventListener("resize", () => {
   initThreadCanvas();
   initWaveCanvas();
+});
+
+// Interactive hover listeners for Stage Cards & Towers
+document.querySelectorAll(".stage-card, .tower-card").forEach(card => {
+  card.addEventListener("mouseenter", () => {
+    const stageAttr = card.dataset.stage;
+    if (stageAttr) {
+      triggerActiveStageAnimation(parseInt(stageAttr, 10));
+    }
+  });
 });
 
 // Start animations
