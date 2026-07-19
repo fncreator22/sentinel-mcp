@@ -395,11 +395,71 @@ class AnthropicProvider:
             raise ProviderError(f"Could not complete API request: {e}")
 
 
+def select_best_model(provider: str, base_url: str, api_key: str) -> str:
+
+    """
+    Queries the live API (if key is set) to find the best available model.
+    Falls back to a guaranteed static default if the API call fails or no key is present.
+    """
+    if not api_key:
+        return PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")
+
+    res = list_available_models(provider, base_url, api_key)
+    if not res.get("ok") or not res.get("models"):
+        return PROVIDER_DEFAULT_MODELS.get(provider, "gpt-4o-mini")
+
+    models = res["models"]
+
+    # Google Gemini logic
+    if provider == "gemini":
+        # Search in order of preference (preferring newer/stable flash models)
+        for preference in [
+            "gemini-1.5-flash-latest", "gemini-1.5-flash", 
+            "gemini-2.0-flash", "gemini-2.5-flash",
+            "gemini-1.5-pro-latest", "gemini-1.5-pro",
+            "gemini-2.0-flash-exp", "gemini-3.5-flash", 
+            "gemini-3.1-flash-lite"
+        ]:
+            if preference in models:
+                return preference
+        # Fallback search by substrings
+        for m in models:
+            if "flash" in m.lower():
+                return m
+        for m in models:
+            if "pro" in m.lower():
+                return m
+        return models[0] if models else "gemini-1.5-flash-latest"
+
+    # OpenAI logic
+    elif provider == "openai":
+        for preference in ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]:
+            if preference in models:
+                return preference
+        return models[0] if models else "gpt-4o-mini"
+
+    # Anthropic logic
+    elif provider == "anthropic":
+        for preference in [
+            "claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229", "claude-3-haiku-20240307"
+        ]:
+            if preference in models:
+                return preference
+        for m in models:
+            if "claude-3" in m.lower():
+                return m
+        return models[0] if models else "claude-3-5-sonnet-20240620"
+
+    # Custom or unknown provider: just pick the first available one
+    return models[0] if models else ""
+
+
 def get_active_provider():
     """
     Reads the current config and returns a ready-to-use provider instance
     with a .generate(prompt) -> str method. This is the ONLY function
-    llm_reviewer.py needs to call — it doesn't need to know whether it's
+    llm_reviewer.py needs to call - it doesn't need to know whether it's
     talking to Ollama, OpenAI, or Anthropic underneath.
     """
     config = load_config()
@@ -425,16 +485,17 @@ def get_active_provider():
         )
 
     provider_name = api.get("provider", "openai")
+    base_url = api.get("base_url", "")
+    api_key = api.get("api_key")
 
-    # Auto-select the best known-working model if the user left it blank.
-    model = api.get("model") or PROVIDER_DEFAULT_MODELS.get(provider_name, "gpt-4o-mini")
+    # Automatically identify the best model to use
+    model = select_best_model(provider_name, base_url, api_key)
 
     if provider_name == "anthropic":
-        return AnthropicProvider(model=model, base_url=api["base_url"], api_key=api["api_key"])
+        return AnthropicProvider(model=model, base_url=base_url, api_key=api_key)
     if provider_name == "gemini":
-        return GeminiProvider(model=model, base_url=api["base_url"], api_key=api["api_key"])
-    return OpenAICompatibleProvider(model=model, base_url=api["base_url"], api_key=api["api_key"])
-
+        return GeminiProvider(model=model, base_url=base_url, api_key=api_key)
+    return OpenAICompatibleProvider(model=model, base_url=base_url, api_key=api_key)
 
 
 def test_active_provider() -> Dict[str, Any]:
@@ -445,47 +506,14 @@ def test_active_provider() -> Dict[str, Any]:
         t0 = time.time()
         response = provider.generate("Reply with the single word: OK")
         latency_ms = int((time.time() - t0) * 1000)
-        return {"ok": True, "message": f"Provider responded: {response.strip()[:200]}", "latency_ms": latency_ms}
+        # Include the auto-selected model identifier in the test response message
+        model_name = getattr(provider, "model", "unknown")
+        return {"ok": True, "message": f"Connected successfully to model '{model_name}' ({latency_ms} ms). Response: {response.strip()[:100]}"}
     except ProviderError as e:
-        return {"ok": False, "message": str(e), "latency_ms": None}
+        return {"ok": False, "message": str(e)}
     except Exception as e:
-        return {"ok": False, "message": f"Unexpected error: {e}", "latency_ms": None}
+        return {"ok": False, "message": f"Unexpected error: {e}"}
 
-
-def test_specific_model(provider: str, base_url: str, api_key: str, model_id: str) -> Dict[str, Any]:
-    """
-    Test a specific model by sending a trivial prompt using saved credentials.
-    Used by the dashboard's per-model test buttons.
-
-    Returns:
-        {"ok": bool, "model_id": str, "message": str, "latency_ms": int|None}
-    """
-    model_id = (model_id or "").strip()
-    if not model_id:
-        return {"ok": False, "model_id": model_id, "message": "Model ID cannot be empty.", "latency_ms": None}
-    if " " in model_id:
-        return {
-            "ok": False, "model_id": model_id,
-            "message": f"Invalid model ID '{model_id}' — model IDs cannot contain spaces. Pick from the dropdown.",
-            "latency_ms": None,
-        }
-    try:
-        if provider == "anthropic":
-            prov = AnthropicProvider(model=model_id, base_url=base_url, api_key=api_key)
-        elif provider == "gemini":
-            prov = GeminiProvider(model=model_id, base_url=base_url, api_key=api_key)
-        else:
-            prov = OpenAICompatibleProvider(model=model_id, base_url=base_url, api_key=api_key)
-
-        t0 = time.time()
-        response = prov.generate("Reply with the single word: OK", timeout=15)
-        latency_ms = int((time.time() - t0) * 1000)
-        snippet = response.strip()[:80].replace("\n", " ")
-        return {"ok": True, "model_id": model_id, "message": f"Connected ({latency_ms} ms). Reply: {snippet}", "latency_ms": latency_ms}
-    except ProviderError as e:
-        return {"ok": False, "model_id": model_id, "message": str(e), "latency_ms": None}
-    except Exception as e:
-        return {"ok": False, "model_id": model_id, "message": f"{type(e).__name__}: {e}", "latency_ms": None}
 
 
 def list_available_models(provider: str, base_url: str, api_key: str) -> Dict[str, Any]:

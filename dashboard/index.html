@@ -448,32 +448,9 @@
           </div>
 
           <div class="input-stack select-stack">
-            <label for="apiModelName">Model name
-              <span class="hint small" style="font-weight:400;"> — or leave blank to auto-select the recommended model</span>
-            </label>
-            <div class="model-name-wrap" style="display:flex;gap:8px;align-items:center;">
-              <input
-                type="text"
-                id="apiModelName"
-                list="modelNameList"
-                placeholder="Auto-select (leave blank) or type / pick from list"
-                autocomplete="off"
-                style="flex:1;"
-              />
-              <button type="button" id="fetchModelsBtn" class="secondary-btn" style="white-space:nowrap;padding:8px 12px;" title="Fetch live model list from your API account">↻ Refresh</button>
-              <button type="button" id="clearModelName" class="secondary-btn" style="white-space:nowrap;padding:8px 12px;" title="Clear and use auto-select">✕ Auto</button>
-            </div>
-            <datalist id="modelNameList">
-              <!-- populated by app.js based on provider selection -->
-            </datalist>
-            <p class="hint small" id="modelNameHint" style="margin-top:4px;"></p>
-          </div>
-
-
-          <div class="input-stack select-stack">
             <label for="apiKeyInput">API key <span id="apiKeyStatus" class="hint small"></span></label>
             <input type="password" id="apiKeyInput" placeholder="Paste your API key (leave blank to keep the saved one)" />
-            <p class="hint small">Your key is stored only in <code>config/model_config.local.yaml</code> on this machine.</p>
+            <p class="hint small">Your key is stored only in <code>config/model_config.local.yaml</code> on this machine. Sentinel will automatically choose the best model available on your key.</p>
           </div>
         </div>
 
@@ -483,22 +460,6 @@
         </div>
         <div id="modelSaveStatus" class="save-status"></div>
         <div id="modelTestStatus" class="save-status"></div>
-
-        <!-- ---- Model Tester Panel (shown after live models are fetched) ---- -->
-        <div id="modelTesterSection" class="model-tester-section hidden">
-          <div class="model-tester-header">
-            <h4>🧪 Model Tester</h4>
-            <p>Test each model individually to see which ones work with your API key. Green = connected. Red = not available or insufficient permissions.</p>
-            <div class="tester-controls">
-              <button id="testAllModelsBtn">⚡ Test All</button>
-              <button id="stopTestingBtn" class="hidden">⛔ Stop</button>
-            </div>
-          </div>
-          <div id="modelTesterList" class="model-tester-list">
-            <!-- Populated dynamically by app.js after model list is fetched -->
-          </div>
-          <div id="testerProgress" class="tester-progress hidden"></div>
-        </div>
       </div>
     </section>
 
