@@ -152,65 +152,132 @@ Stage 2 does not pass every prediction to Stage 3 — only predictions below an 
 
 ---
 
-## Setup
+---
 
-**Requirements**: Python 3.10 or later, pip, internet access (for API providers), or Ollama installed locally.
+## Setup & Quick Start
 
-### Docker (recommended for production)
+### Step 1: Start Sentinel Backend & Dashboard
 
+**Windows (One-Click)**:
+Double-click `start.bat` in the project root folder. The script will automatically:
+1. Create a Python virtual environment (`venv`) if missing
+2. Install required packages from `requirements.txt`
+3. Train the Stage 2 ML classifier if model pickles are missing
+4. Launch the FastAPI backend on `http://localhost:8000`
+5. Launch the SSE server on `http://localhost:8002`
+6. Launch the Live Dashboard on `http://localhost:8080` in your default browser
+
+**Manual / Linux / macOS Setup**:
 ```bash
-# Build the image
-docker build -t sentinel .
-
-# Run the container
-docker run -p 8000:8000 -p 8080:8080 sentinel
-```
-
-The dashboard will be available at `http://localhost:8080` and the API at `http://localhost:8000`.
-
-To persist the audit log and configuration across container restarts, mount a volume:
-
-```bash
-docker run -p 8000:8000 -p 8080:8080 \
-  -v $(pwd)/config:/app/config \
-  -v $(pwd)/sentinel.db:/app/sentinel.db \
-  sentinel
-```
-
-### Windows (one-click)
-
-Double-click `start.bat` in the project root. The script will:
-1. Create a Python virtual environment if one does not exist
-2. Install all dependencies from `requirements.txt`
-3. Train the Stage 2 classifier if model artifacts are missing
-4. Start the FastAPI server on port 8000
-5. Start the dashboard on port 8080
-6. Open the dashboard in your browser
-
-### Manual setup
-
-```bash
-# Create and activate the virtual environment
+# 1. Create and activate virtual environment
 python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # macOS / Linux
+source venv/bin/activate        # macOS/Linux (use venv\Scripts\activate on Windows)
 
-# Install dependencies
+# 2. Install dependencies
 pip install -r requirements.txt
 
-# (First time only) Train the Stage 2 classifier
+# 3. Train classifier model (first run only)
 python train/train_classifier.py
 
-# Start the API server
+# 4. Run API Server (Terminal 1)
 python -m uvicorn api.main:app --port 8000 --reload
 
-# In a separate terminal, serve the dashboard
-cd dashboard
-python -m http.server 8080
+# 5. Run SSE MCP Server (Terminal 2)
+python mcp_server/sse_server.py --port 8002
 
-# Open in browser
-# http://localhost:8080
+# 6. Run Dashboard UI (Terminal 3)
+python -m http.server 8080 --directory dashboard
 ```
+
+---
+
+## Step-by-Step Client Integration Guide
+
+Sentinel seamlessly connects to any MCP-compliant AI assistant. Follow the exact step-by-step guide below for your platform:
+
+### 1. Claude Desktop (Windows / macOS)
+
+1. **Start Sentinel**: Ensure `start.bat` or the backend services are running.
+2. **Open Configuration File**:
+   - **Windows**: Open `%APPDATA%\Claude\claude_desktop_config.json` in Notepad or VS Code.
+   - **macOS**: Open `~/Library/Application Support/Claude/claude_desktop_config.json`.
+3. **Paste the Configuration**:
+   Add `sentinel` under `mcpServers` with the absolute path to your Python virtual environment executable and `mcp_server/server.py`:
+   ```json
+   {
+     "mcpServers": {
+       "sentinel": {
+         "command": "C:\\path\\to\\sentinel\\venv\\Scripts\\python.exe",
+         "args": [
+           "C:\\path\\to\\sentinel\\mcp_server\\server.py"
+         ],
+         "env": {
+           "PYTHONPATH": "C:\\path\\to\\sentinel"
+         }
+       }
+     }
+   }
+   ```
+4. **Restart Claude Desktop**: Completely close and relaunch Claude Desktop.
+5. **Verify Connection**:
+   - In Claude Desktop, click the **Hammer 🔨 / Settings** icon in the bottom right corner of the chat window, or go to **Settings > Developer**.
+   - You will see a blue badge reading **`sentinel running`** with active tools `review_action` and `get_recent_decisions`.
+
+---
+
+### 2. Cursor IDE (Stdio & SSE Transport)
+
+1. **Open Cursor Settings**: Open Cursor IDE, click **Settings (Gear Icon)** in the top right or press `Ctrl + ,` / `Cmd + ,`.
+2. **Navigate to MCP**: Select **Features** from the sidebar, then scroll down to **MCP Servers**.
+3. **Add New Server**:
+   - Click **+ Add New MCP Server**.
+   - **Name**: `sentinel`
+   - **Type**: Select `SSE` (recommended for zero sub-process overhead) or `stdio`.
+   - **URL / Command**:
+     - For **SSE**: Enter `http://localhost:8002/sse`.
+     - For **stdio**: Set `command` to your `python.exe` and `args` to `mcp_server/server.py`.
+4. **Verify**: The status indicator will turn **Green (Connected)**.
+
+---
+
+### 3. Claude Code CLI
+
+1. **Locate Config**: Open `~/.claude/claude_code_config.json` (or project-level `.claude/config.json`).
+2. **Add MCP Server**:
+   ```json
+   {
+     "mcpServers": {
+       "sentinel": {
+         "command": "python",
+         "args": ["mcp_server/server.py"],
+         "cwd": "/path/to/sentinel"
+       }
+     }
+   }
+   ```
+3. **Run Prompt**: When Claude Code proposes commands, it will invoke `review_action` automatically before executing.
+
+---
+
+### 4. Web-Based IDEs & Custom HTTP Clients (SSE)
+
+For web platforms, remote agents, or testing with the **MCP Inspector**:
+- **SSE Endpoint**: `http://localhost:8002/sse`
+- **Messages Endpoint**: `http://localhost:8002/messages/`
+- **Test with Inspector**:
+  ```bash
+  npx -y @modelcontextprotocol/inspector sse http://localhost:8002/sse
+  ```
+
+---
+
+### 5. Rapid Connection Utility in Dashboard
+
+The dashboard provides a built-in interactive copy utility:
+1. Open `http://localhost:8080` in your browser.
+2. Click the **Connect** button in the top right header.
+3. Switch between **Stdio** and **SSE** tabs to generate auto-filled configuration snippets customized to your local file paths.
+4. Click **Copy Config to Clipboard** and paste directly into your client's config file!
 
 ---
 
@@ -244,42 +311,6 @@ When the MCP server starts, it initializes the following tools and makes them av
 |---|---|---|
 | `review_action` | `action_text` (str), `user_task` (str) | Review a proposed agent action BEFORE executing it. Returns a verdict of `ALLOW`, `BLOCK`, or `REVIEW`. |
 | `get_recent_decisions` | `limit` (int, default=20) | Return recent entries from the audit log to provide the agent with context of past verdicts. |
-
-### Transport 1: Stdio (Local Process)
-
-Best for clients running locally on your machine (e.g., Claude Desktop, Claude Code, VS Code). Add the following block to your MCP client config (e.g. `~/.claude/claude_code_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "sentinel": {
-      "command": "python",
-      "args": ["mcp_server/server.py"],
-      "cwd": "/absolute/path/to/sentinel"
-    }
-  }
-}
-```
-
-### Transport 2: SSE (Web Endpoint)
-
-Best for web-based IDEs (like Cursor Web) or platforms that cannot spawn local subprocesses. `start.bat` automatically launches the SSE server alongside the API and dashboard.
-
-**Cursor IDE Connection:**
-- **Type**: `SSE`
-- **URL**: `http://localhost:8002/sse`
-
-**Test with MCP Inspector:**
-```bash
-npx -y @modelcontextprotocol/inspector sse http://localhost:8002/sse
-```
-
-### Rapid Connection Guide
-
-To simplify client integration, the dashboard features a **Connect** utility in the top right corner:
-1. Click the **Connect** button at the top right of the dashboard.
-2. Select your preferred transport tab (Stdio or SSE).
-3. The modal overlay provides exact endpoints, URLs, and a timeline of instructions to register the Sentinel tools with your coding assistant.
 
 ---
 
