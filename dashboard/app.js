@@ -849,6 +849,54 @@ document.getElementById("pauseResumeBtn").addEventListener("click", async () => 
   }
 });
 
+// ---- Emergency Kill Switch --------------------------------------------------
+const killSwitchBtn = document.getElementById("killSwitchBtn");
+const killModal = document.getElementById("killModal");
+const closeKillModal = document.getElementById("closeKillModal");
+const cancelKillBtn = document.getElementById("cancelKillBtn");
+const confirmKillBtn = document.getElementById("confirmKillBtn");
+
+if (killSwitchBtn && killModal) {
+  killSwitchBtn.addEventListener("click", () => {
+    killModal.classList.remove("hidden");
+  });
+}
+
+if (closeKillModal && killModal) {
+  closeKillModal.addEventListener("click", () => killModal.classList.add("hidden"));
+}
+if (cancelKillBtn && killModal) {
+  cancelKillBtn.addEventListener("click", () => killModal.classList.add("hidden"));
+}
+
+if (confirmKillBtn) {
+  confirmKillBtn.addEventListener("click", async () => {
+    killModal.classList.add("hidden");
+    stopAutoRefresh();
+    try {
+      await apiFetch("/shutdown", { method: "POST" });
+    } catch (e) {}
+
+    // Update status badge immediately
+    const apiBadge = document.getElementById("apiStatus");
+    if (apiBadge) {
+      apiBadge.textContent = "API SHUTDOWN";
+      apiBadge.className = "api-badge";
+    }
+
+    // Render full-screen Terminated overlay
+    const overlay = document.createElement("div");
+    overlay.className = "server-terminated-overlay";
+    overlay.innerHTML = `
+      <div style="font-size: 54px;">⚡</div>
+      <h2 style="font-size: 26px; font-weight: 700; color: #ff3d57; font-family: var(--font-body);">SENTINEL SERVER TERMINATED</h2>
+      <p style="color: var(--text-dim); max-width: 480px; font-size: 13px; line-height: 1.6;">The Emergency Kill Switch was activated. All pipeline reviews are aborted and the server process has been shut down.</p>
+      <button onclick="location.reload()" class="primary-btn" style="margin-top: 12px; font-weight: 700;">RECONNECT SERVER</button>
+    `;
+    document.body.appendChild(overlay);
+  });
+}
+
 // ---- Connect Modal (Timeline Guide) ------------------------------------------
 const connectModal = document.getElementById("connectModal");
 const connectModalBtn = document.getElementById("connectModalBtn");

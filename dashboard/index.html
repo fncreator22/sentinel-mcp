@@ -60,8 +60,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="plug-icon"><path d="M18 8h1a4 4 0 0 1 0 8h-1M6 8H5a4 4 0 0 0 0 8h1M2 12h4M18 12h4M9 8v8M15 8v8"/></svg>
         <span>Connect</span>
       </button>
-      
 
+      <!-- KILL SWITCH button -->
+      <button class="danger-btn kill-switch-btn" id="killSwitchBtn" title="Emergency Stop Server">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>KILL SWITCH</span>
+      </button>
     </div>
   </header>
 
@@ -660,6 +664,24 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  <!-- Emergency Kill Switch Confirmation Modal -->
+  <div id="killModal" class="modal-overlay hidden">
+    <div class="modal-card danger-modal glass-card">
+      <div class="modal-header">
+        <span class="modal-title warning">⚠️ EMERGENCY KILL SWITCH</span>
+        <button class="close-btn" id="closeKillModal">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 0;">
+        <p style="color: var(--text); font-size: 14px; font-weight: 600;">Are you sure you want to activate the Emergency Kill Switch?</p>
+        <p class="hint small" style="color: var(--signal-block); margin-top: 8px; font-family: var(--font-mono);">
+          This will immediately stop the Sentinel pipeline, abort all active review requests, and terminate the server process.
+        </p>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px;">
+        <button id="cancelKillBtn" class="secondary-btn">Cancel</button>
+        <button id="confirmKillBtn" class="danger-btn pulse-glow">CONFIRM SHUTDOWN</button>
       </div>
     </div>
   </div>

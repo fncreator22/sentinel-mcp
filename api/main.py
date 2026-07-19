@@ -56,6 +56,8 @@ RUN WITH:
 
 import os
 import sys
+import time
+import signal
 from typing import Optional, List
 
 import yaml
@@ -221,6 +223,40 @@ def resume_sentinel(x_sentinel_key: Optional[str] = Header(default=None)):
     require_auth(x_sentinel_key)
     orchestrator.paused = False
     return {"ok": True, "paused": False, "message": "Sentinel guardrail resumed. Pipeline is active."}
+
+
+def _exit_server():
+    time.sleep(0.3)
+    try:
+        import signal
+        os.kill(os.getpid(), signal.SIGTERM)
+    except Exception:
+        pass
+    os._exit(0)
+
+
+@app.post("/shutdown")
+def shutdown_sentinel(x_sentinel_key: Optional[str] = Header(default=None)):
+    """
+    Emergency Kill Switch endpoint. Pauses guardrails, logs shutdown event,
+    and terminates the Sentinel server process cleanly.
+    """
+    require_auth(x_sentinel_key)
+    orchestrator.paused = True
+    orchestrator.audit_log.log_decision(
+        action_text="EMERGENCY_SHUTDOWN",
+        user_task="Dashboard Kill Switch Triggered",
+        final_verdict="BLOCK",
+        decided_by_stage="kill_switch",
+        reason="Server execution terminated via Dashboard Kill Switch.",
+    )
+    import threading
+    threading.Thread(target=_exit_server, daemon=True).start()
+    return {
+        "ok": True,
+        "shutdown": True,
+        "message": "Sentinel Kill Switch activated. Server process is terminating...",
+    }
 
 
 @app.post("/review", response_model=ReviewResponse)
