@@ -95,6 +95,21 @@ class AuditLog:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def get_summary_stats(self) -> Dict[str, int]:
+        with self._connect() as conn:
+            stage1 = conn.execute("SELECT COUNT(*) FROM decisions WHERE decided_by_stage = 'rules_engine'").fetchone()[0]
+            stage2 = conn.execute("SELECT COUNT(*) FROM decisions WHERE decided_by_stage = 'classifier'").fetchone()[0]
+            stage3 = conn.execute("SELECT COUNT(*) FROM decisions WHERE decided_by_stage = 'llm_reviewer'").fetchone()[0]
+            blocks = conn.execute("SELECT COUNT(*) FROM decisions WHERE final_verdict = 'BLOCK'").fetchone()[0]
+            total = conn.execute("SELECT COUNT(*) FROM decisions").fetchone()[0]
+            return {
+                "stage1_detections": stage1,
+                "stage2_detections": stage2,
+                "stage3_detections": stage3,
+                "recent_blocks": blocks,
+                "total_decisions": total,
+            }
+
 
 if __name__ == "__main__":
     log = AuditLog()

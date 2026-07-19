@@ -74,20 +74,72 @@ async function checkApiStatus() {
     el.textContent = "API online";
     el.className = "api-badge online";
     authBar.classList.toggle("hidden", !data.auth_required || !!SENTINEL_KEY);
-    if (data.project_root) {
-    projectRootPath = data.project_root;
-}
+    
+    if (data.project_root) projectRootPath = data.project_root;
+    if (data.python_executable) pythonExecutable = data.python_executable;
+    
+    renderMcpConfig();
+    
+    // Update Model Badge & Provider Text dynamically
+    if (data.model_info) {
+        const activeModelText = document.getElementById("activeModelText");
+        if (activeModelText) activeModelText.textContent = data.model_info.display;
+        const activeProviderText = document.getElementById("activeProviderText");
+        if (activeProviderText) activeProviderText.textContent = data.model_info.display;
+    }
 
-if (data.python_executable) {
-    pythonExecutable = data.python_executable;
-}
-
-renderMcpConfig();
+    // Update Stats dynamically from health/audit log
+    if (data.stats) {
+        const setTxt = (id, val) => { const elem = document.getElementById(id); if (elem) elem.textContent = val; };
+        setTxt("countRules", data.stats.stage1_detections || 0);
+        setTxt("countClassifier", data.stats.stage2_detections || 0);
+        setTxt("countLlm", data.stats.stage3_detections || 0);
+        setTxt("countBlock", data.stats.recent_blocks || 0);
+        
+        const nodeAuditSub = document.getElementById("nodeAuditSub");
+        if (nodeAuditSub) nodeAuditSub.textContent = `${data.stats.total_decisions || 0} Decisions Logged`;
+    }
+    
+    // Update component statuses dynamically
+    if (data.components) {
+        const stdioBadge = document.getElementById("towerStdioBadge");
+        if (stdioBadge) {
+            stdioBadge.textContent = data.components.stdio;
+            stdioBadge.className = "tower-badge " + (data.components.stdio === "ONLINE" ? "active" : "");
+            const nodeStdio = document.getElementById("nodeStdio");
+            if (nodeStdio) nodeStdio.className = "terminal-node active";
+        }
+        const sseBadge = document.getElementById("towerSseBadge");
+        if (sseBadge) {
+            sseBadge.textContent = data.components.sse;
+            sseBadge.className = "tower-badge " + (data.components.sse === "ONLINE" ? "active" : "");
+            const nodeSse = document.getElementById("nodeSse");
+            if (nodeSse) nodeSse.className = "terminal-node active";
+        }
+        const rulesBadge = document.getElementById("towerRulesBadge");
+        if (rulesBadge) {
+            rulesBadge.textContent = data.components.validators.split(' ')[0];
+            rulesBadge.className = "tower-badge active";
+            const rulesDetails = document.getElementById("towerRulesDetails");
+            if (rulesDetails) rulesDetails.textContent = data.components.validators;
+        }
     }
   } catch (e) {
     el.textContent = "API offline";
     el.title = "Start API: uvicorn api.main:app --port 8000";
     el.className = "api-badge";
+    
+    const activeModelText = document.getElementById("activeModelText");
+    if (activeModelText) activeModelText.textContent = "API OFFLINE";
+
+    // Set components offline
+    ["towerStdioBadge", "towerSseBadge", "towerRulesBadge"].forEach(id => {
+        const badge = document.getElementById(id);
+        if (badge) {
+            badge.textContent = "OFFLINE";
+            badge.className = "tower-badge error";
+        }
+    });
   }
 }
 

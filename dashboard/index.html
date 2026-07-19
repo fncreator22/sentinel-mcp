@@ -49,6 +49,10 @@
     </nav>
 
     <div class="header-right">
+      <div class="model-badge" id="activeModelHeader" style="background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.3); color: #00f2fe; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+        <span class="pulse-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #00f2fe;"></span>
+        <span id="activeModelText">DETECTING MODEL...</span>
+      </div>
       <div class="api-badge" id="apiStatus">Connecting…</div>
       
       <!-- Connect button (Header Right, styled like CyberDefend action icons) -->
@@ -170,11 +174,11 @@
                 <span class="tower-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
                 <div class="tower-meta">
                   <span class="tower-name">stdio_mcp_listener</span>
-                  <span class="tower-details">Local process server</span>
+                  <span class="tower-details" id="towerStdioDetails">Local process server</span>
                 </div>
               </div>
               <div class="tower-status">
-                <span class="tower-badge active">ONLINE</span>
+                <span class="tower-badge active" id="towerStdioBadge">OFFLINE</span>
               </div>
             </div>
 
@@ -184,7 +188,7 @@
                 <span class="tower-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg></span>
                 <div class="tower-meta">
                   <span class="tower-name">sse_mcp_service</span>
-                  <span class="tower-details">Port 8002 SSE transport</span>
+                  <span class="tower-details" id="towerSseDetails">Port 8002 SSE transport</span>
                 </div>
               </div>
               <div class="tower-status">
@@ -198,11 +202,11 @@
                 <span class="tower-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
                 <div class="tower-meta">
                   <span class="tower-name">pattern_validators</span>
-                  <span class="tower-details">Stage 1 exact matches</span>
+                  <span class="tower-details" id="towerRulesDetails">Stage 1 exact matches</span>
                 </div>
               </div>
               <div class="tower-status">
-                <span class="tower-badge">RUNNING</span>
+                <span class="tower-badge" id="towerRulesBadge">PENDING</span>
               </div>
             </div>
 
@@ -270,17 +274,17 @@
 
             <!-- Stdio vs SSE active indicators on the right -->
             <div class="right-terminals">
-              <div class="terminal-node" style="top: 25%">
+              <div class="terminal-node" id="nodeStdio" style="top: 25%">
                 <span class="node-label">Stdio Client</span>
-                <span class="node-sub">Claude Code / Desktop</span>
+                <span class="node-sub" id="nodeStdioSub">Claude Code / Desktop</span>
               </div>
-              <div class="terminal-node" style="top: 50%">
+              <div class="terminal-node" id="nodeSse" style="top: 50%">
                 <span class="node-label">SSE Gateway</span>
-                <span class="node-sub">Web-based IDEs</span>
+                <span class="node-sub" id="nodeSseSub">Web-based IDEs</span>
               </div>
-              <div class="terminal-node" style="top: 75%">
+              <div class="terminal-node active" id="nodeAudit" style="top: 75%">
                 <span class="node-label">Audit Logger</span>
-                <span class="node-sub">Decision Log</span>
+                <span class="node-sub" id="nodeAuditSub">0 Decisions Logged</span>
               </div>
             </div>
           </div>

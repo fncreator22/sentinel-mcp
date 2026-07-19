@@ -1,4 +1,4 @@
-active_provider: api
+active_provider: local
 local:
   ollama_base_url: http://localhost:11434
   selected_model: qwen2.5-coder:7b

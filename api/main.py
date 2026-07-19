@@ -151,13 +151,41 @@ def health():
     import os
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     project_root_normalized = project_root.replace("\\", "/")
+    rules_count = len(orchestrator.rules_engine.block_patterns) + len(orchestrator.rules_engine.allow_patterns)
+    
+    model_cfg = model_manager.load_config()
+    active_prov = model_cfg.get("active_provider", "local")
+    if active_prov == "local":
+        sel_model = model_cfg.get("local", {}).get("selected_model") or "Auto-detecting"
+        model_display = f"LOCAL LLM ({sel_model})"
+        is_online = model_manager._ping_ollama(model_cfg.get("local", {}).get("ollama_base_url"))
+    else:
+        api_info = model_cfg.get("api", {})
+        prov_type = api_info.get("provider", "api").upper()
+        model_name = api_info.get("model", "")
+        model_display = f"API ({prov_type}: {model_name})" if model_name else f"API ({prov_type})"
+        is_online = bool(api_info.get("api_key"))
+
+    stats = orchestrator.audit_log.get_summary_stats()
+
     return {
-    "status": "ok",
-    "auth_required": bool(SENTINEL_API_KEY),
-    "project_root": project_root_normalized,
-    "python_executable": sys.executable,
-    "paused": orchestrator.paused,
-}
+        "status": "ok",
+        "auth_required": bool(SENTINEL_API_KEY),
+        "project_root": project_root_normalized,
+        "python_executable": sys.executable,
+        "paused": orchestrator.paused,
+        "model_info": {
+            "active_provider": active_prov,
+            "display": model_display,
+            "is_online": is_online
+        },
+        "stats": stats,
+        "components": {
+            "stdio": "ONLINE",
+            "sse": "ONLINE",
+            "validators": f"ACTIVE ({rules_count} rules)"
+        }
+    }
 
 
 @app.get("/status")

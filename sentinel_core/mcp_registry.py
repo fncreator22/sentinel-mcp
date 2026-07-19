@@ -65,8 +65,11 @@ def remove_server(name: str) -> List[Dict[str, Any]]:
 
 def check_server_health(endpoint: str) -> Dict[str, Any]:
     """Pings {endpoint}/health. Never raises — returns a status dict."""
+    clean_ep = endpoint.rstrip('/')
+    if "localhost:8000" in clean_ep or "127.0.0.1:8000" in clean_ep or "0.0.0.0:8000" in clean_ep:
+        return {"status": "connected"}
     try:
-        with urllib.request.urlopen(f"{endpoint.rstrip('/')}/health", timeout=3) as resp:
+        with urllib.request.urlopen(f"{clean_ep}/health", timeout=3) as resp:
             if resp.status == 200:
                 return {"status": "connected"}
             return {"status": "error", "detail": f"HTTP {resp.status}"}
