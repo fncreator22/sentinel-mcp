@@ -17,11 +17,7 @@ Supports **both Stdio (local process) and SSE (web endpoint)** MCP transports fo
 
 ## 🎬 Demo
 
-> A short walkthrough of the problem, the pipeline, and the dashboard.
-
-<video src="https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.mp4" controls width="100%"></video>
-
-> **Can't see the video?** [▶ Download and watch it directly](https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.mp4)
+<video src="https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.mp4" autoplay muted loop playsinline width="100%"></video>
 
 ---
 
