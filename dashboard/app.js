@@ -422,7 +422,7 @@ async function loadLocalModels() {
     const configRes = await apiFetch("/models/config");
     if (!configRes.ok) throw new Error(`HTTP ${configRes.status}`);
     const currentConfig = await configRes.json();
-    const selected = currentConfig.local?.selected_model;
+    const selected = currentConfig.local?.selected_model || (data.models.length > 0 ? data.models[0].name : null);
 
     listEl.innerHTML = data.models.map(m => `
       <label class="model-option">

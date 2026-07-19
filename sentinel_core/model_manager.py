@@ -51,12 +51,24 @@ def _cache_key(provider: str, api_key: str) -> str:
     return f"{provider}:{tail}"
 
 
-def _clean_error(raw: str) -> str:
+def _clean_error(raw: str, provider: str = "api") -> str:
     """
     Convert any raw ProviderError / API response into a short, user-friendly
     message.  Never shows JSON blobs or stack traces.
     """
     low = raw.lower()
+    
+    if provider == "local":
+        if "connection refused" in low or "could not reach" in low or "connectionrefused" in low:
+            return "Could not reach Ollama. Make sure Ollama is running (ollama serve) and your Base URL is correct."
+        if "404" in raw or "not found" in low:
+            return "Model not found in Ollama. Try pulling it in your terminal first."
+        if "no local model" in low:
+            return raw
+        # Remove any long error detail or JSON-like parts
+        cleaned = re.sub(r'\{.*\}', '', raw, flags=re.DOTALL).strip(': \n')
+        return cleaned[:200] if cleaned else raw[:200]
+
     if "quota" in low or "resource_exhausted" in low or "429" in raw:
         return "API quota exceeded for this key. Check your billing plan or try again later."
     if "401" in raw or "invalid api key" in low or "unauthorized" in low:
@@ -319,6 +331,11 @@ class OllamaProvider:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 body = json.loads(resp.read().decode("utf-8"))
                 return body.get("response", "")
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode(errors="ignore")
+            if e.code == 404:
+                raise ProviderError(f"Model '{self.model}' not found in Ollama. Run: ollama pull {self.model}")
+            raise ProviderError(f"Ollama API returned HTTP {e.code}: {raw}")
         except (urllib.error.URLError, TimeoutError, ConnectionRefusedError) as e:
             raise ProviderError(f"Could not reach local Ollama at {self.base_url}: {e}")
 
@@ -526,12 +543,17 @@ def get_active_provider():
 
     if config["active_provider"] == "local":
         local = config["local"]
-        if not local.get("selected_model"):
-            raise ProviderError(
-                "No local model selected yet. Open Model Settings and pick an Ollama model."
-            )
+        selected_model = local.get("selected_model")
+        if not selected_model:
+            available = detect_local_models(local.get("ollama_base_url"))
+            if available:
+                selected_model = available[0].name
+            else:
+                raise ProviderError(
+                    "No local model selected and no Ollama models detected. Make sure Ollama is running (ollama serve) and you have pulled a model (e.g. 'ollama pull qwen2.5-coder:7b')."
+                )
         return OllamaProvider(
-            model=local["selected_model"],
+            model=selected_model,
             base_url=local.get("ollama_base_url", DEFAULT_CONFIG["local"]["ollama_base_url"]),
         )
 
@@ -567,7 +589,7 @@ def test_active_provider() -> Dict[str, Any]:
             ms = int((time.time() - t0) * 1000)
             return {"ok": True, "message": f"Connected to local model '{prov.model}' ({ms} ms)."}
         except ProviderError as e:
-            return {"ok": False, "message": _clean_error(str(e))}
+            return {"ok": False, "message": _clean_error(str(e), provider="local")}
 
     # --- API provider ---
     api = config.get("api", {})
