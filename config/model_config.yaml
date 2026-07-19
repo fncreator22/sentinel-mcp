@@ -1,10 +1,8 @@
-active_provider: local
-
+active_provider: api
 local:
-  ollama_base_url: "http://localhost:11434"
-  selected_model: null
-
+  ollama_base_url: http://localhost:11434
+  selected_model: qwen2.5-coder:7b
 api:
-  provider: "openai"
-  base_url: "https://api.openai.com/v1"
-  model: "gpt-4o-mini"
+  provider: gemini
+  base_url: https://generativelanguage.googleapis.com/v1beta
+  model: ''

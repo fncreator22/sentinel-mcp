@@ -285,7 +285,7 @@ document.getElementById("saveRules").addEventListener("click", async () => {
     statusEl.textContent = "Saved and reloaded — new rules are live.";
   } catch (err) {
     statusEl.className = "save-status error";
-    statusEl.textContent = `Save failed: ${err.message}`;
+    statusEl.textContent = `❌ ${friendlyError(err, "Could not save rules")}`;
   }
 });
 
@@ -303,31 +303,78 @@ const API_PROVIDER_PRESETS = {
   openai: { base_url: "https://api.openai.com/v1", model: "gpt-4o-mini" },
   anthropic: { base_url: "https://api.anthropic.com/v1", model: "claude-sonnet-4-5" },
   gemini: { base_url: "https://generativelanguage.googleapis.com/v1beta", model: "gemini-1.5-flash" },
-  custom: { base_url: "", model: "" },
+  custom: { base_url: "", model: "" }
 };
 
-// ---- Model dropdown list per provider ------------------------------------------
-const PROVIDER_MODELS = {
-  openai: [
-    { id: "gpt-4o",               label: "GPT-4o — recommended" },
-    { id: "gpt-4o-mini",          label: "GPT-4o Mini — fastest / cheapest" },
-    { id: "gpt-4-turbo",          label: "GPT-4 Turbo" },
-    { id: "gpt-3.5-turbo",        label: "GPT-3.5 Turbo" },
-  ],
-  anthropic: [
-    { id: "claude-3-5-sonnet-20240620", label: "Claude 3.5 Sonnet — recommended" },
-    { id: "claude-3-5-haiku-20241022",  label: "Claude 3.5 Haiku — fastest" },
-    { id: "claude-3-opus-20240229",     label: "Claude 3 Opus — most capable" },
-    { id: "claude-3-sonnet-20240229",   label: "Claude 3 Sonnet" },
-    { id: "claude-3-haiku-20240307",    label: "Claude 3 Haiku" },
-  ],
-  gemini: [
-    { id: "gemini-1.5-flash-latest",    label: "Gemini 1.5 Flash — recommended" },
-    { id: "gemini-1.5-pro-latest",      label: "Gemini 1.5 Pro — most capable" },
-    { id: "gemini-2.0-flash-exp",       label: "Gemini 2.0 Flash (experimental)" },
-    { id: "gemini-1.0-pro",             label: "Gemini 1.0 Pro" },
-  ],
-  custom: [],
+// ---- Friendly error messages -----------------------------------------------
+/**
+ * Convert any raw error/response into a clean, user-facing string.
+ * Never shows raw stack traces or API internals to the user.
+ */
+function friendlyError(err, context) {
+  if (!err) return "Something went wrong. Please try again.";
+  const raw = (err.message || String(err)).toLowerCase();
+
+  // Network / reachability
+  if (raw.includes("failed to fetch") || raw.includes("networkerror") || raw.includes("network request failed"))
+    return "Cannot reach the Sentinel API. Make sure start.bat is running and try refreshing.";
+  if (raw.includes("getaddrinfo") || raw.includes("name resolution") || raw.includes("no route"))
+    return "No internet connection. Check your network and try again.";
+  if (raw.includes("timed out") || raw.includes("timeout"))
+    return "The request timed out. The server may be busy — try again in a moment.";
+
+  // HTTP status codes
+  if (raw.includes("401") || raw.includes("unauthorized"))
+    return "Invalid API key. Double-check that you pasted it correctly and re-save.";
+  if (raw.includes("403") || raw.includes("forbidden"))
+    return "Access denied. Your API key may not have permission for this action.";
+  if (raw.includes("404"))
+    return "Endpoint not found. The Sentinel API may need to be restarted after the latest update.";
+  if (raw.includes("429") || raw.includes("rate limit"))
+    return "Too many requests. Wait a moment and try again.";
+  if (raw.includes("500") || raw.includes("internal server error"))
+    return "The Sentinel API encountered an internal error. Check the terminal for details.";
+
+  // Model-specific
+  if (raw.includes("model") && (raw.includes("not found") || raw.includes("does not exist")))
+    return "The selected model was not found on this account. Pick another from the dropdown.";
+  if (raw.includes("api key") || raw.includes("api_key"))
+    return "API key problem. Check that the key is correct and has the required permissions.";
+
+  // Generic fallback — still clean, no raw internals shown
+  if (context) return `${context}. Please check your settings and try again.`;
+  return "Something went wrong. Please check your settings.";
+}
+
+/**
+ * Sanitize any backend message string before displaying it to the user.
+ * Strips raw JSON blobs, quota error details, and truncates long strings.
+ */
+function cleanMsg(msg) {
+  if (!msg || typeof msg !== "string") return "Unknown error. Please try again.";
+  const low = msg.toLowerCase();
+  // Already-clean short messages
+  if (msg.length <= 180 && !msg.startsWith("{") && !low.includes('"error"')) return msg;
+  // Detect JSON / quota blobs
+  if (low.includes('"error"') || low.includes('resource_exhausted') || msg.startsWith("{")) {
+    if (low.includes("quota") || low.includes("resource_exhausted") || low.includes("429"))
+      return "API quota exceeded for this key. Check your billing plan or try again later.";
+    if (low.includes("401") || low.includes("unauthorized"))
+      return "Invalid API key — please re-enter your key.";
+    if (low.includes("403")) return "Access denied by the API provider.";
+    if (low.includes("404")) return "API endpoint not found. Check your Base URL.";
+    return "API error — see Model Settings for details.";
+  }
+  // Long but readable — truncate
+  return msg.length > 200 ? msg.slice(0, 197) + "…" : msg;
+}
+
+// ---- Static fallback model lists (shown before API key is saved) -----------
+const PROVIDER_MODELS_FALLBACK = {
+  openai:    ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+  anthropic: ["claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022", "claude-3-opus-20240229", "claude-3-haiku-20240307"],
+  gemini:    ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-2.0-flash-exp", "gemini-1.0-pro"],
+  custom:    [],
 };
 
 const PROVIDER_DEFAULTS = {
@@ -337,77 +384,45 @@ const PROVIDER_DEFAULTS = {
   custom:    "",
 };
 
-function populateModelList(provider) {
-  const datalist = document.getElementById("modelNameList");
-  const hint = document.getElementById("modelNameHint");
-  if (!datalist) return;
-
-  datalist.innerHTML = "";
-  const models = PROVIDER_MODELS[provider] || [];
-  models.forEach(m => {
-    const opt = document.createElement("option");
-    opt.value = m.id;
-    opt.label = m.label;
-    datalist.appendChild(opt);
-  });
-
-  const def = PROVIDER_DEFAULTS[provider];
-  if (hint) {
-    hint.textContent = def
-      ? `Auto-select will use: ${def}`
-      : "Enter a model name for this provider.";
-  }
-}
-
 document.getElementById("apiProviderSelect").addEventListener("change", (e) => {
   const preset = API_PROVIDER_PRESETS[e.target.value];
   if (preset) {
     document.getElementById("apiBaseUrl").value = preset.base_url;
-    document.getElementById("apiModelName").value = preset.model;
   }
-  populateModelList(e.target.value);
-});
-
-// "✕ Auto" button — clear the model name so the backend auto-selects
-document.getElementById("clearModelName")?.addEventListener("click", () => {
-  document.getElementById("apiModelName").value = "";
-  document.getElementById("apiModelName").focus();
 });
 
 
 async function loadLocalModels() {
   const statusEl = document.getElementById("localModelStatus");
-  const listEl = document.getElementById("localModelList");
-  statusEl.textContent = "Checking for local models...";
-  statusEl.className = "status-line";
+  const listEl   = document.getElementById("localModelList");
+  statusEl.textContent = "Checking for local models…";
+  statusEl.className   = "status-line";
 
   try {
     const res = await apiFetch("/models/local");
-    if (!res.ok) {
-      throw new Error(`API returned HTTP ${res.status} for /models/local — is api/main.py up to date and restarted? See /docs to check the version.`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
     if (!data.ollama_reachable) {
-      statusEl.className = "status-line warn";
+      statusEl.className   = "status-line warn";
       statusEl.textContent = "Ollama isn't running or isn't installed on this machine.";
       listEl.innerHTML = "";
       return;
     }
     if (data.models.length === 0) {
-      statusEl.className = "status-line warn";
-      statusEl.textContent = "Ollama is running, but no models are pulled yet.";
+      statusEl.className   = "status-line warn";
+      statusEl.textContent = "Ollama is running, but no models are pulled yet. Run: ollama pull llama3.2";
       listEl.innerHTML = "";
       return;
     }
 
-    statusEl.className = "status-line ok";
+    statusEl.className   = "status-line ok";
     statusEl.textContent = `Ollama is running — found ${data.models.length} model(s).`;
 
     const configRes = await apiFetch("/models/config");
-    if (!configRes.ok) throw new Error(`API returned HTTP ${configRes.status} for /models/config`);
+    if (!configRes.ok) throw new Error(`HTTP ${configRes.status}`);
     const currentConfig = await configRes.json();
-    const selected = currentConfig.local?.selected_model;
+    const selected = currentConfig.local?.selected_model || (data.models.length > 0 ? data.models[0].name : null);
 
     listEl.innerHTML = data.models.map(m => `
       <label class="model-option">
@@ -417,8 +432,8 @@ async function loadLocalModels() {
       </label>
     `).join("");
   } catch (err) {
-    statusEl.className = "status-line warn";
-    statusEl.textContent = `Could not check for local models: ${err.message}`;
+    statusEl.className   = "status-line warn";
+    statusEl.textContent = friendlyError(err, "Could not check for local models");
   }
 }
 
@@ -432,81 +447,83 @@ document.getElementById("refreshLocalModels").addEventListener("click", loadLoca
 async function loadModelConfig() {
   try {
     const res = await apiFetch("/models/config");
-    if (!res.ok) {
-      throw new Error(`API returned HTTP ${res.status} for /models/config — is api/main.py up to date and restarted? See /docs to check the version.`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
     document.querySelector(`input[name="providerChoice"][value="${data.active_provider}"]`).checked = true;
     setProviderPanelVisibility(data.active_provider);
 
     const providerText = document.getElementById("activeProviderText");
-    if (providerText) {
-      providerText.textContent = data.active_provider.toUpperCase();
-    }
+    if (providerText) providerText.textContent = data.active_provider.toUpperCase();
 
     document.getElementById("ollamaBaseUrl").value = data.local.ollama_base_url || "http://localhost:11434";
 
     const providerVal = data.api.provider || "openai";
-    document.getElementById("apiProviderSelect").value = providerVal;
-    document.getElementById("apiBaseUrl").value = data.api.base_url;
-    document.getElementById("apiModelName").value = data.api.model;
+    document.getElementById("apiProviderSelect").value  = providerVal;
+    document.getElementById("apiBaseUrl").value         = data.api.base_url;
     document.getElementById("apiKeyStatus").textContent = data.api.api_key_set
       ? `(saved key ending in ${data.api.api_key_masked?.slice(-4) || "????"})` 
       : "(no key saved yet)";
 
-    // Seed the model datalist for the current provider
-    populateModelList(providerVal);
-
-  } catch (err) { console.error("Could not load model config:", err); }
+  } catch (err) {
+    console.warn("Could not load model config:", err);
+  }
 }
 
 document.getElementById("saveModelSettings").addEventListener("click", async () => {
-  const statusEl = document.getElementById("modelSaveStatus");
+  const statusEl      = document.getElementById("modelSaveStatus");
   const providerChoice = document.querySelector('input[name="providerChoice"]:checked').value;
-  const selectedLocal = document.querySelector('input[name="localModelChoice"]:checked');
+  const selectedLocal  = document.querySelector('input[name="localModelChoice"]:checked');
 
   const payload = {
     active_provider: providerChoice,
     local: {
       ollama_base_url: document.getElementById("ollamaBaseUrl").value.trim() || "http://localhost:11434",
-      selected_model: selectedLocal ? selectedLocal.value : null,
+      selected_model:  selectedLocal ? selectedLocal.value : null,
     },
     api: {
       provider: document.getElementById("apiProviderSelect").value,
       base_url: document.getElementById("apiBaseUrl").value,
-      model: document.getElementById("apiModelName").value,
-      api_key: document.getElementById("apiKeyInput").value, // "" = keep existing
+      model:    "", // dynamic auto-select on the backend
+      api_key:  document.getElementById("apiKeyInput").value, // "" = keep existing
     },
   };
 
+  statusEl.className   = "save-status";
+  statusEl.textContent = "Saving…";
+
   try {
     const res = await apiFetch("/models/config", { method: "POST", body: JSON.stringify(payload) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    statusEl.className = "save-status ok";
-    statusEl.textContent = "Model settings saved.";
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `HTTP ${res.status}`);
+    }
+    statusEl.className   = "save-status ok";
+    statusEl.textContent = "✅ Settings saved.";
     document.getElementById("apiKeyInput").value = "";
     loadModelConfig();
   } catch (err) {
-    statusEl.className = "save-status error";
-    statusEl.textContent = `Save failed: ${err.message}`;
+    statusEl.className   = "save-status error";
+    statusEl.textContent = `❌ ${friendlyError(err, "Could not save settings")}`;
   }
 });
 
 document.getElementById("testModelSettings").addEventListener("click", async () => {
   const statusEl = document.getElementById("modelTestStatus");
-  statusEl.className = "save-status";
-  statusEl.textContent = "Testing...";
+  statusEl.className   = "save-status";
+  statusEl.textContent = "⏳ Searching for a working model… this may take a few seconds.";
   try {
-    const res = await apiFetch("/models/test", { method: "POST" });
+    const res  = await apiFetch("/models/test", { method: "POST" });
     const data = await res.json();
-    statusEl.className = data.ok ? "save-status ok" : "save-status error";
-    statusEl.textContent = data.message;
+    const msg  = cleanMsg(data.message || "");
+    statusEl.className   = data.ok ? "save-status ok" : "save-status error";
+    statusEl.textContent = data.ok ? `✅ ${msg}` : `❌ ${msg}`;
   } catch (err) {
-    statusEl.className = "save-status error";
-    statusEl.textContent = `Test failed: ${err.message}`;
+    statusEl.className   = "save-status error";
+    statusEl.textContent = `❌ ${friendlyError(err, "Connection test failed")}`;
   }
 });
+
 
 // ---- MCP servers -----------------------------------------------------------------
 async function loadServers() {

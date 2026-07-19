@@ -17,6 +17,7 @@ ENDPOINTS
     GET  /models/config          -> current provider config (secrets masked)
     POST /models/config          -> save provider config (local or api)
     POST /models/test            -> send a trivial prompt to confirm it works
+    GET  /models/available       -> live model list fetched from the configured API key
 
   MCP server registry:
     GET    /mcp/servers          -> list registered MCP servers + live health
@@ -275,6 +276,9 @@ def update_model_config(req: ModelConfigUpdateRequest, x_sentinel_key: Optional[
 def test_model_config(x_sentinel_key: Optional[str] = Header(default=None)):
     require_auth(x_sentinel_key)
     return model_manager.test_active_provider()
+
+
+
 
 
 # ---- MCP server registry ----------------------------------------------------------
