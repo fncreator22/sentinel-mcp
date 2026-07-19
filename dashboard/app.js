@@ -27,6 +27,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 
 // ---- Health / auth check ------------------------------------------------------
 let projectRootPath = "";
+let pythonExecutable = "python";
 
 function renderMcpConfig() {
   const preview = document.getElementById("mcpConfigPreview");
@@ -35,14 +36,17 @@ function renderMcpConfig() {
     return;
   }
   const config = {
-    "mcpServers": {
-      "sentinel": {
-        "command": "python",
-        "args": ["mcp_server/server.py"],
-        "cwd": projectRootPath
-      }
+  mcpServers: {
+    sentinel: {
+      command: pythonExecutable,
+      args: [
+        "-m",
+        "mcp_server.server"
+      ],
+      cwd: projectRootPath
     }
-  };
+  }
+};
   preview.textContent = JSON.stringify(config, null, 2);
 }
 
@@ -71,8 +75,14 @@ async function checkApiStatus() {
     el.className = "api-badge online";
     authBar.classList.toggle("hidden", !data.auth_required || !!SENTINEL_KEY);
     if (data.project_root) {
-      projectRootPath = data.project_root;
-      renderMcpConfig();
+    projectRootPath = data.project_root;
+}
+
+if (data.python_executable) {
+    pythonExecutable = data.python_executable;
+}
+
+renderMcpConfig();
     }
   } catch (e) {
     el.textContent = "API offline";
