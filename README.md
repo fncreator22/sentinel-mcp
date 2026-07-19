@@ -17,7 +17,7 @@ Supports **both Stdio (local process) and SSE (web endpoint)** MCP transports fo
 
 ## 🎬 Demo
 
-<video src="https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.mp4" autoplay muted loop playsinline width="100%"></video>
+![Sentinel MCP demo — three-stage guardrail pipeline in action](https://raw.githubusercontent.com/fncreator22/sentinel-landing/main/assets/sentinel-demo.gif)
 
 ---
 
