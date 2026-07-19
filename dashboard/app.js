@@ -316,6 +316,25 @@ async function checkActiveReviewState() {
       if (bannerCmd) bannerCmd.textContent = `Action: "${data.action_text}"`;
       if (bannerTimer) bannerTimer.textContent = `${data.total_elapsed_sec.toFixed(1)}s`;
 
+      // Update Stage Metadata & Tags (PASSED / ESCALATED / EVALUATING)
+      const meta1 = document.getElementById("stageMeta1");
+      const meta2 = document.getElementById("stageMeta2");
+      const meta3 = document.getElementById("stageMeta3");
+
+      if (data.current_stage === 1) {
+        if (meta1) meta1.innerHTML = `<span class="stage-passed-tag" style="color:var(--accent)">EVALUATING</span>`;
+        if (meta2) meta2.textContent = "CENTRAL";
+        if (meta3) meta3.textContent = "WEST";
+      } else if (data.current_stage === 2) {
+        if (meta1) meta1.innerHTML = `<span class="stage-passed-tag">PASSED ✓</span>`;
+        if (meta2) meta2.innerHTML = `<span class="stage-passed-tag" style="color:var(--signal-allow)">CLASSIFYING</span>`;
+        if (meta3) meta3.textContent = "WEST";
+      } else if (data.current_stage === 3) {
+        if (meta1) meta1.innerHTML = `<span class="stage-passed-tag">PASSED ✓</span>`;
+        if (meta2) meta2.innerHTML = `<span class="stage-escalated-tag">ESCALATED ⚡</span>`;
+        if (meta3) meta3.innerHTML = `<span class="stage-passed-tag" style="color:#ff3dbe">DEEP REVIEW</span>`;
+      }
+
       // Highlight active stage card
       const activeCard = document.getElementById(`stageNode${data.current_stage}`);
       const activeStatusEl = document.getElementById(`stageActive${data.current_stage}`);
@@ -343,6 +362,12 @@ async function checkActiveReviewState() {
         loadFeed(); // Refresh decision feed once review completes
       }
       if (activeBanner) activeBanner.classList.add("hidden");
+      const meta1 = document.getElementById("stageMeta1");
+      const meta2 = document.getElementById("stageMeta2");
+      const meta3 = document.getElementById("stageMeta3");
+      if (meta1) meta1.textContent = "US-EAST";
+      if (meta2) meta2.textContent = "CENTRAL";
+      if (meta3) meta3.textContent = "WEST";
     }
   } catch (e) {
     // API offline or error
