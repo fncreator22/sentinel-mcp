@@ -17,6 +17,11 @@ echo   Sentinel - AI Guardrail Agent
 echo  ====================================================
 echo.
 
+REM ---- Step 0: Free ports 8000, 8080, 8002 if held by stale processes ---------------
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8000.*LISTENING"') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8080.*LISTENING"') do taskkill /f /pid %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":8002.*LISTENING"') do taskkill /f /pid %%a >nul 2>&1
+
 REM ---- Step 1: Check Python -------------------------------------------------------
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
