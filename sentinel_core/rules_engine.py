@@ -67,13 +67,21 @@ class RulesEngine:
         """
         Checks a single rule dict (with keys: pattern, regex) against the
         action text. Case-insensitive in both plain and regex modes.
+        Handled defensively against invalid regex or malformed rules.
         """
-        pattern = rule["pattern"]
+        if not action_text or not isinstance(action_text, str):
+            return False
+        pattern = rule.get("pattern", "")
+        if not pattern:
+            return False
         is_regex = rule.get("regex", False)
         text = action_text.lower()
 
         if is_regex:
-            return re.search(pattern, text, flags=re.IGNORECASE) is not None
+            try:
+                return re.search(pattern, text, flags=re.IGNORECASE) is not None
+            except re.error:
+                return False
         else:
             return pattern.lower() in text
 

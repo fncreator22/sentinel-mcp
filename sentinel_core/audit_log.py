@@ -45,10 +45,11 @@ class AuditLog:
         self._init_db()
 
     def _connect(self):
-        return sqlite3.connect(self.db_path)
+        return sqlite3.connect(self.db_path, timeout=30.0)
 
     def _init_db(self):
         with self._connect() as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute(CREATE_TABLE_SQL)
             conn.commit()
 

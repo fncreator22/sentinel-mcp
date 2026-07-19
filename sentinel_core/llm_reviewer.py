@@ -78,11 +78,11 @@ class LLMReviewer:
         try:
             provider = get_active_provider()
             raw_text = provider.generate(prompt)
-        except ProviderError as e:
+        except Exception as e:
             return LLMReviewResult(
                 verdict="REVIEW",
                 explanation=(
-                    "No working model is configured for Stage 3, so this "
+                    "No working model is configured or reachable for Stage 3, so this "
                     "action needs manual review as a safe default. "
                     f"({e})"
                 ),
