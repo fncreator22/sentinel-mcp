@@ -22,6 +22,8 @@ EXPOSE 8000
 EXPOSE 8080
 EXPOSE 8002
 
-# Command to run the API, SSE MCP server, and serve the dashboard using a startup shell script
-# Run API, SSE server, and dashboard in background
-CMD python mcp_server/sse_server.py --port 8002 & python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 & cd dashboard && python -m http.server 8080
+# Ensure Python can find all modules (api, sentinel_core, mcp_server, etc)
+ENV PYTHONPATH=/app
+
+# Command to run the API, SSE MCP server, and serve the dashboard
+CMD python mcp_server/sse_server.py --port 8002 & python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 & cd dashboard && python -m http.server 8080 --bind 0.0.0.0
