@@ -94,18 +94,17 @@ def _preference_order(provider: str) -> List[str]:
     """Ordered list of model IDs to try for each provider, most preferred first."""
     if provider == "gemini":
         return [
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-flash-001",
-            "gemini-1.5-flash",
-            "gemini-2.5-flash-lite",
+            "gemini-flash-latest",
+            "gemini-pro-latest",
+            "gemini-flash-lite-latest",
             "gemini-2.5-flash",
-            "gemini-1.5-pro-latest",
-            "gemini-1.5-pro-001",
-            "gemini-1.5-pro",
             "gemini-2.5-pro",
-            "gemini-2.0-flash-lite",
             "gemini-2.0-flash",
-            "gemini-2.0-flash-exp",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro-latest",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
         ]
     if provider == "openai":
         return ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"]
@@ -125,6 +124,17 @@ def _is_quota_error(msg: str) -> bool:
     return any(x in low for x in [
         "quota", "resource_exhausted", "429", "rate limit",
         "requests per", "tokens per",
+    ])
+
+
+def _is_model_specific_error(msg: str) -> bool:
+    """True when the error is specific to this model ID (e.g. 404, deprecated, 400 Bad Request)."""
+    low = msg.lower()
+    if any(x in low for x in ["invalid api key", "unauthorized", "no internet", "network", "getaddrinfo", "401", "403"]):
+        return False
+    return _is_quota_error(msg) or any(x in low for x in [
+        "not found", "no longer available", "not available", "404", "does not support",
+        "invalid model", "unknown model", "bad request", "400"
     ])
 
 import yaml
@@ -629,28 +639,23 @@ def test_active_provider() -> Dict[str, Any]:
             }
         except ProviderError as e:
             msg = str(e)
-            if _is_quota_error(msg):
+            if _is_model_specific_error(msg):
                 skipped.append(model_id)
-                last_err = f"Quota exceeded on {len(skipped)} model(s). Trying next..."
+                last_err = f"Failed on model '{model_id}': {_clean_error(msg)}"
                 continue  # silently move to the next model
-            # Non-quota error (bad key, network, etc.) — stop immediately
-            # Remove bad cache entry if present
+            # Key/network error — stop immediately
             _MODEL_CACHE.pop(cache_k, None)
             return {"ok": False, "message": _clean_error(msg)}
         except Exception as e:
             _MODEL_CACHE.pop(cache_k, None)
             return {"ok": False, "message": _clean_error(str(e))}
 
-    # All models quota-exhausted
+    # All models failed
     _MODEL_CACHE.pop(cache_k, None)
     if skipped:
         return {
             "ok": False,
-            "message": (
-                f"All {len(skipped)} available model(s) have hit their quota limit. "
-                "This usually means the free tier is exhausted for this API key. "
-                "Check your plan or billing at the provider's dashboard."
-            ),
+            "message": f"Connection failed after testing {len(skipped)} available model(s). {last_err}",
         }
     return {"ok": False, "message": last_err}
 
