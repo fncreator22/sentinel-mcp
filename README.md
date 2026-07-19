@@ -214,7 +214,9 @@ Open the dashboard at `http://localhost:8080` and navigate to **Model Settings**
 
 **Local (Ollama)**: Select any model detected from your local Ollama installation. No internet required. Pull a model with `ollama pull <model-name>` before selecting it.
 
-**API providers**: Select Google Gemini, OpenAI, or Anthropic, enter your API key, and save. The key is stored in `config/model_config.local.yaml` on disk, never written to the audit log, and never returned in full over the API (only the last 4 characters are shown in the dashboard).
+**API providers**: Select Google Gemini, OpenAI, Anthropic, or a custom OpenAI-compatible endpoint. Enter your API key and click **Save Model Settings**. After saving, the dashboard automatically calls the provider's live `/models` endpoint and populates the model dropdown with every model your key has access to. You can then pick from the list or type any model name manually. If you leave the model field blank, Sentinel auto-selects the recommended default for that provider. The key is stored in `config/model_config.local.yaml` on disk, never written to the audit log, and never returned in full over the API (only the last 4 characters are shown in the dashboard).
+
+Click **↻ Refresh** next to the model field at any time to re-fetch the live model list without saving again.
 
 ### Stage 1 Rules
 
@@ -291,6 +293,7 @@ The FastAPI backend exposes the following endpoints. Full interactive documentat
 | GET | `/models/config` | Get current model provider configuration |
 | POST | `/models/config` | Update model provider configuration |
 | POST | `/models/test` | Test the active model provider connection |
+| GET | `/models/available` | Fetch live list of models available on the saved API key |
 | GET | `/mcp/servers` | List registered MCP servers |
 | POST | `/mcp/servers` | Register a new MCP server |
 | DELETE | `/mcp/servers/{name}` | Remove a registered MCP server |

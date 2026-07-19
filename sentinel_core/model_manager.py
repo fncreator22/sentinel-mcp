@@ -74,7 +74,22 @@ PROVIDER_DEFAULT_MODELS: Dict[str, str] = {
     "gemini":    "gemini-1.5-flash-latest",
 }
 
-
+# Static model lists — used as a fallback when no API key is saved yet.
+# Once the user saves their key, the dashboard replaces these with live data.
+PROVIDER_MODELS_STATIC: Dict[str, list] = {
+    "openai": [
+        "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo",
+    ],
+    "anthropic": [
+        "claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022",
+        "claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307",
+    ],
+    "gemini": [
+        "gemini-1.5-flash-latest", "gemini-1.5-pro-latest",
+        "gemini-2.0-flash-exp", "gemini-1.0-pro",
+    ],
+    "custom": [],
+}
 
 # ---- Config load / save ----------------------------------------------------
 
@@ -406,7 +421,111 @@ def test_active_provider() -> Dict[str, Any]:
         return {"ok": False, "message": f"Unexpected error: {e}"}
 
 
+def list_available_models(provider: str, base_url: str, api_key: str) -> Dict[str, Any]:
+    """
+    Calls the provider's live /models endpoint using the saved API key and
+    returns a list of model IDs the account has access to.
+
+    Returns:
+        {
+          "ok": True/False,
+          "models": ["model-id-1", "model-id-2", ...],   # sorted
+          "error": "Human-readable error string if ok=False"
+        }
+
+    Never raises — all errors become {"ok": False, "error": "..."}.
+    """
+    base_url = (base_url or "").rstrip("/")
+    try:
+        # ------------------------------------------------------------------ #
+        # OpenAI  (and any OpenAI-compatible custom endpoint)                 #
+        # ------------------------------------------------------------------ #
+        if provider in ("openai", "custom"):
+            req = urllib.request.Request(
+                f"{base_url}/models",
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            # OpenAI schema: { "data": [ {"id": "gpt-4o", ...}, ... ] }
+            ids = sorted(m["id"] for m in data.get("data", []) if m.get("id"))
+            return {"ok": True, "models": ids, "error": None}
+
+        # ------------------------------------------------------------------ #
+        # Anthropic                                                            #
+        # ------------------------------------------------------------------ #
+        if provider == "anthropic":
+            req = urllib.request.Request(
+                f"{base_url}/models",
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            # Anthropic schema: { "data": [ {"id": "claude-3-5-sonnet-...", ...} ] }
+            ids = sorted(m["id"] for m in data.get("data", []) if m.get("id"))
+            return {"ok": True, "models": ids, "error": None}
+
+        # ------------------------------------------------------------------ #
+        # Google Gemini                                                        #
+        # ------------------------------------------------------------------ #
+        if provider == "gemini":
+            url = f"{base_url}/models?key={api_key}"
+            with urllib.request.urlopen(url, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            # Gemini schema: { "models": [ {"name": "models/gemini-1.5-flash-latest", ...} ] }
+            def _strip_prefix(n: str) -> str:
+                return n.split("/")[-1] if "/" in n else n
+
+            ids = sorted(
+                _strip_prefix(m["name"])
+                for m in data.get("models", [])
+                if m.get("name") and "generateContent" in m.get("supportedGenerationMethods", [])
+            )
+            return {"ok": True, "models": ids, "error": None}
+
+        return {"ok": False, "models": [], "error": f"Unknown provider: {provider}"}
+
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode(errors="ignore")
+        except Exception:
+            pass
+        code = e.code
+        if code == 401:
+            return {"ok": False, "models": [], "error": "Invalid API key — please check and re-enter it."}
+        if code == 403:
+            return {"ok": False, "models": [], "error": "Access denied. Your key may not have permission to list models."}
+        if code == 404:
+            return {"ok": False, "models": [], "error": "Model listing endpoint not found. Check the Base URL."}
+        if code == 429:
+            return {"ok": False, "models": [], "error": "Rate limit reached. Wait a moment and try again."}
+        return {"ok": False, "models": [], "error": f"API returned HTTP {code}. Response: {body[:200]}"}
+
+    except (urllib.error.URLError, TimeoutError, ConnectionRefusedError) as e:
+        err_str = str(e).lower()
+        if any(x in err_str for x in ["getaddrinfo", "name resolution", "nodename", "network unreachable", "no route"]):
+            return {"ok": False, "models": [], "error": "No internet connection. Check your network and try again."}
+        if "timed out" in err_str or isinstance(e, TimeoutError):
+            return {"ok": False, "models": [], "error": "Connection timed out. The API may be slow — try again in a moment."}
+        return {"ok": False, "models": [], "error": f"Could not reach the API endpoint. Check the Base URL."}
+
+    except Exception as e:
+        return {"ok": False, "models": [], "error": f"Unexpected error while fetching models: {type(e).__name__}: {e}"}
+
+
 if __name__ == "__main__":
     print("Detected local Ollama models:", detect_local_models())
     print("Current config (masked):", masked_config())
     print("Test result:", test_active_provider())
+

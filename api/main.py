@@ -17,6 +17,7 @@ ENDPOINTS
     GET  /models/config          -> current provider config (secrets masked)
     POST /models/config          -> save provider config (local or api)
     POST /models/test            -> send a trivial prompt to confirm it works
+    GET  /models/available       -> live model list fetched from the configured API key
 
   MCP server registry:
     GET    /mcp/servers          -> list registered MCP servers + live health
@@ -275,6 +276,45 @@ def update_model_config(req: ModelConfigUpdateRequest, x_sentinel_key: Optional[
 def test_model_config(x_sentinel_key: Optional[str] = Header(default=None)):
     require_auth(x_sentinel_key)
     return model_manager.test_active_provider()
+
+
+@app.get("/models/available")
+def get_available_models():
+    """
+    Calls the configured provider's live /models API endpoint and returns
+    the list of models the saved API key has access to.
+
+    Used by the dashboard to auto-populate the model dropdown after the
+    user saves their API key.
+
+    Returns:
+        {
+          "ok": bool,
+          "provider": str,
+          "models": ["model-id-1", ...],
+          "error": str | null
+        }
+    """
+    config = model_manager.load_config()
+    api = config.get("api", {})
+    provider  = api.get("provider", "openai")
+    base_url  = api.get("base_url", "")
+    api_key   = api.get("api_key")
+
+    if not api_key:
+        # No key saved yet — return the static preset list so the UI
+        # still shows sensible options before the key is entered.
+        presets = model_manager.PROVIDER_MODELS_STATIC.get(provider, [])
+        return {
+            "ok": False,
+            "provider": provider,
+            "models": presets,
+            "error": "No API key saved yet. Save your key first, then models will be fetched live from the API.",
+        }
+
+    result = model_manager.list_available_models(provider, base_url, api_key)
+    result["provider"] = provider
+    return result
 
 
 # ---- MCP server registry ----------------------------------------------------------
