@@ -47,6 +47,10 @@ block_patterns:
     reason: "Uploading a secrets file to a remote endpoint."
     regex: true
 
+  - pattern: 'curl\s+.*-[Xx]\s*POST'
+    reason: "HTTP POST payload transmit to remote server."
+    regex: true
+
   # --- Version control danger zone ---
   - pattern: "git push --force"
     reason: "Force push can overwrite remote history and destroy others' work."

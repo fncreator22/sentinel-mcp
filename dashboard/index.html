@@ -94,17 +94,24 @@
           <div class="stage-card glass-card" id="stageNode1" data-stage="1">
             <div class="card-header">
               <span class="card-title">Stage 1: Rules Engine</span>
-              <span class="card-meta">US-EAST</span>
+              <span class="card-meta" id="stageMeta1">US-EAST</span>
             </div>
             <div class="card-main">
               <div class="metric-row">
                 <span class="metric-val" id="countRules">0</span>
                 <span class="metric-label">detections</span>
               </div>
+              <div class="stage-active-status hidden" id="stageActive1">
+                <div class="active-badge-row">
+                  <span class="status-pulse-dot"></span>
+                  <span class="status-state-text" id="stageStateText1">RUNNING</span>
+                  <span class="stage-timer-val" id="stageTimer1">0.0s</span>
+                </div>
+              </div>
               <div class="progress-bar-stack">
                 <div class="progress-label-row">
-                  <span>always first</span>
-                  <span>100% hits</span>
+                  <span id="stageSub1">always first</span>
+                  <span id="stageAccuracy1">100% hits</span>
                 </div>
                 <div class="progress-track">
                   <div class="progress-fill stage1-fill" id="barRules" style="width: 100%"></div>
@@ -117,17 +124,24 @@
           <div class="stage-card glass-card" id="stageNode2" data-stage="2">
             <div class="card-header">
               <span class="card-title">Stage 2: Classifier</span>
-              <span class="card-meta">CENTRAL</span>
+              <span class="card-meta" id="stageMeta2">CENTRAL</span>
             </div>
             <div class="card-main">
               <div class="metric-row">
                 <span class="metric-val" id="countClassifier">0</span>
                 <span class="metric-label">detections</span>
               </div>
+              <div class="stage-active-status hidden" id="stageActive2">
+                <div class="active-badge-row">
+                  <span class="status-pulse-dot"></span>
+                  <span class="status-state-text" id="stageStateText2">CLASSIFYING</span>
+                  <span class="stage-timer-val" id="stageTimer2">0.0s</span>
+                </div>
+              </div>
               <div class="progress-bar-stack">
                 <div class="progress-label-row">
-                  <span>76.3% accuracy</span>
-                  <span>confidence threshold</span>
+                  <span id="stageSub2">76.3% accuracy</span>
+                  <span id="stageAccuracy2">confidence threshold</span>
                 </div>
                 <div class="progress-track">
                   <div class="progress-fill stage2-fill" id="barClassifier" style="width: 75%"></div>
@@ -140,17 +154,24 @@
           <div class="stage-card glass-card" id="stageNode3" data-stage="3">
             <div class="card-header">
               <span class="card-title">Stage 3: LLM Reviewer</span>
-              <span class="card-meta">WEST</span>
+              <span class="card-meta" id="stageMeta3">WEST</span>
             </div>
             <div class="card-main">
               <div class="metric-row">
                 <span class="metric-val" id="countLlm">0</span>
                 <span class="metric-label">detections</span>
               </div>
+              <div class="stage-active-status hidden" id="stageActive3">
+                <div class="active-badge-row">
+                  <span class="status-pulse-dot"></span>
+                  <span class="status-state-text" id="stageStateText3">DEEP REASONING</span>
+                  <span class="stage-timer-val" id="stageTimer3">0.0s</span>
+                </div>
+              </div>
               <div class="progress-bar-stack">
                 <div class="progress-label-row">
-                  <span>ambiguous only</span>
-                  <span>deep context</span>
+                  <span id="stageSub3">ambiguous only</span>
+                  <span id="stageAccuracy3">deep context</span>
                 </div>
                 <div class="progress-track">
                   <div class="progress-fill stage3-fill" id="barLlm" style="width: 40%"></div>
@@ -322,6 +343,14 @@
                 <input type="checkbox" id="autoRefresh" checked>
                 <span>Auto-refresh (3s)</span>
               </label>
+            </div>
+          </div>
+          <div id="activeBanner" class="active-banner hidden">
+            <div class="active-banner-content">
+              <span class="active-pulse-dot"></span>
+              <span class="active-banner-stage" id="bannerStage">EVALUATING ACTION</span>
+              <span class="active-banner-cmd" id="bannerCmd">...</span>
+              <span class="active-banner-timer" id="bannerTimer">0.0s</span>
             </div>
           </div>
           <div id="decisionFeed" class="feed">

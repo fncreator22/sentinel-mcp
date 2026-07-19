@@ -184,17 +184,26 @@ def health():
             "stdio": "ONLINE",
             "sse": "ONLINE",
             "validators": f"ACTIVE ({rules_count} rules)"
-        }
+        },
+        "active_review": orchestrator.get_active_review_status(),
     }
 
 
 @app.get("/status")
 def get_status():
-    """Lightweight status endpoint — paused state + auth mode."""
+    """Lightweight status endpoint — paused state, auth mode, and active review state."""
     return {
         "paused": orchestrator.paused,
         "auth_required": bool(SENTINEL_API_KEY),
+        "active_review": orchestrator.get_active_review_status(),
     }
+
+
+@app.get("/active_review")
+def get_active_review():
+    """High-frequency endpoint for polling active pipeline execution status and timers."""
+    return orchestrator.get_active_review_status()
+
 
 
 @app.post("/pause")

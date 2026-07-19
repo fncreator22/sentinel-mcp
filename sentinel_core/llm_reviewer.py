@@ -77,12 +77,12 @@ class LLMReviewer:
 
         try:
             provider = get_active_provider()
-            raw_text = provider.generate(prompt)
+            raw_text = provider.generate(prompt, timeout=15)
         except Exception as e:
             return LLMReviewResult(
                 verdict="REVIEW",
                 explanation=(
-                    "No working model is configured or reachable for Stage 3, so this "
+                    "Stage 3 LLM reviewer unavailable or timed out, so this "
                     "action needs manual review as a safe default. "
                     f"({e})"
                 ),
