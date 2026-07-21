@@ -13,7 +13,7 @@ We currently support the latest `main` branch and the most recent tagged release
 
 If you discover a security vulnerability within Sentinel, please do **NOT** open a public issue. 
 
-Instead, please send an email to **maintainers@sentinel-mcp.com**. We will treat your report with the highest priority. 
+Instead, please send an email to **sr2mahajan@gmail.com**. We will treat your report with the highest priority. 
 
 When reporting, please include:
 - A detailed description of the vulnerability.
