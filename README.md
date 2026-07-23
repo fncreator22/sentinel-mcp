@@ -162,7 +162,7 @@ Stage 2 does not pass every prediction to Stage 3 — only predictions below an 
 Double-click `start.bat` in the project root folder. The script will automatically:
 1. Create a Python virtual environment (`venv`) if missing
 2. Install required packages from `requirements.txt`
-3. Train the Stage 2 ML classifier if model pickles are missing
+3. Train the Stage 2 ML classifier if model pickles are missing.
 4. Launch the FastAPI backend on `http://localhost:8000`
 5. Launch the SSE server on `http://localhost:8002`
 6. Launch the Live Dashboard on `http://localhost:8080` in your default browser
