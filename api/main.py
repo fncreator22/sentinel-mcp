@@ -63,6 +63,7 @@ from typing import Optional, List
 import yaml
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from sentinel_core.orchestrator import Orchestrator
@@ -78,6 +79,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount dashboard as static files if available
+_dashboard_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dashboard")
+if os.path.exists(_dashboard_dir):
+    app.mount("/dashboard", StaticFiles(directory=_dashboard_dir, html=True), name="dashboard")
 
 orchestrator = Orchestrator()
 

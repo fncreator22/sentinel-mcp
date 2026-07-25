@@ -74,3 +74,35 @@ def test_block_takes_priority_over_allow():
     # Contains "git" (loosely allow-ish) but is a force push -> must BLOCK.
     result = engine.check("git push --force origin main")
     assert result.verdict == "BLOCK"
+
+
+def test_auto_reload_on_mtime_change(tmp_path):
+    import time
+    import yaml
+
+    rules_file = tmp_path / "rules.yaml"
+    initial_data = {
+        "block_patterns": [{"pattern": "custom_bad_cmd", "regex": False, "reason": "Initial block"}],
+        "allow_patterns": [],
+        "classifier_confidence_threshold": 0.75,
+    }
+    rules_file.write_text(yaml.safe_dump(initial_data))
+
+    engine = RulesEngine(rules_path=rules_file)
+    assert engine.check("custom_bad_cmd").verdict == "BLOCK"
+    assert engine.check("new_bad_cmd").verdict == "PASS"
+
+    time.sleep(0.05)  # Ensure mtime increments
+    updated_data = {
+        "block_patterns": [
+            {"pattern": "custom_bad_cmd", "regex": False, "reason": "Initial block"},
+            {"pattern": "new_bad_cmd", "regex": False, "reason": "New dynamic block"},
+        ],
+        "allow_patterns": [],
+        "classifier_confidence_threshold": 0.75,
+    }
+    rules_file.write_text(yaml.safe_dump(updated_data))
+
+    # Next check should detect mtime update and automatically reload
+    assert engine.check("new_bad_cmd").verdict == "BLOCK"
+

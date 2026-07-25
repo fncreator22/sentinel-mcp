@@ -26,4 +26,4 @@ EXPOSE 8002
 ENV PYTHONPATH=/app
 
 # Command to run the API, SSE MCP server, and serve the dashboard using python http.server
-CMD python mcp_server/sse_server.py --port 8002 & python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 & python -m http.server 8080 --bind 0.0.0.0 --directory dashboard
+CMD ["sh", "-c", "python mcp_server/sse_server.py --port 8002 & python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 & python -m http.server 8080 --bind 0.0.0.0 --directory dashboard & wait -n"]

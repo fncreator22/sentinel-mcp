@@ -45,7 +45,18 @@ class RuleEngineResult:
 class RulesEngine:
     def __init__(self, rules_path: Path = DEFAULT_RULES_PATH):
         self.rules_path = Path(rules_path)
+        self._last_mtime: float = 0.0
         self.reload()
+
+    def _check_auto_reload(self):
+        """Check if rules.yaml was modified on disk and auto-reload if needed."""
+        try:
+            if self.rules_path.exists():
+                current_mtime = self.rules_path.stat().st_mtime
+                if current_mtime > self._last_mtime:
+                    self.reload()
+        except Exception:
+            pass
 
     def reload(self):
         """
@@ -53,14 +64,19 @@ class RulesEngine:
         called again any time the dashboard writes a new rules.yaml, so
         changes take effect without restarting the whole service.
         """
-        with open(self.rules_path, "r") as f:
-            data = yaml.safe_load(f) or {}
+        try:
+            if self.rules_path.exists():
+                self._last_mtime = self.rules_path.stat().st_mtime
+            with open(self.rules_path, "r") as f:
+                data = yaml.safe_load(f) or {}
 
-        self.block_patterns = data.get("block_patterns", [])
-        self.allow_patterns = data.get("allow_patterns", [])
-        self.classifier_confidence_threshold = data.get(
-            "classifier_confidence_threshold", 0.75
-        )
+            self.block_patterns = data.get("block_patterns", [])
+            self.allow_patterns = data.get("allow_patterns", [])
+            self.classifier_confidence_threshold = data.get(
+                "classifier_confidence_threshold", 0.75
+            )
+        except Exception as e:
+            print(f"[Sentinel] Error reloading rules.yaml: {e}")
 
     @staticmethod
     def _matches(action_text: str, rule: dict) -> bool:
@@ -90,6 +106,7 @@ class RulesEngine:
         Main entry point. Checks block patterns first, then allow patterns.
         Returns PASS if nothing matched (meaning: send to Stage 2).
         """
+        self._check_auto_reload()
         for rule in self.block_patterns:
             if self._matches(action_text, rule):
                 return RuleEngineResult(

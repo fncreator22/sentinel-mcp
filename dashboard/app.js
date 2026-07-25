@@ -4,15 +4,38 @@
    open index.html directly, or serve dashboard/ with any static server.
    ============================================================================= */
 
-const API_BASE = "http://localhost:8000";
-let SENTINEL_KEY = sessionStorage.getItem("sentinelKey") || "";
+function getApiBase() {
+  const stored = localStorage.getItem("sentinel_api_base");
+  if (stored && stored.trim()) {
+    return stored.trim().replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined" && window.location && window.location.origin && window.location.origin !== "null" && !window.location.origin.startsWith("file://")) {
+    return window.location.origin;
+  }
+  return "http://localhost:8000";
+}
+
+function getSseUrl() {
+  const stored = localStorage.getItem("sentinel_sse_endpoint");
+  if (stored && stored.trim()) {
+    return stored.trim();
+  }
+  const apiBase = getApiBase();
+  if (apiBase.includes(":8000")) {
+    return apiBase.replace(":8000", ":8002") + "/sse";
+  }
+  return `${apiBase}/sse`;
+}
+
+let SENTINEL_KEY = sessionStorage.getItem("sentinelKey") || localStorage.getItem("sentinel_api_key") || "";
 let autoRefreshTimer = null;
 
 // ---- Small fetch wrapper that attaches the auth header when set ------------
 async function apiFetch(path, options = {}) {
   const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
   if (SENTINEL_KEY) headers["X-Sentinel-Key"] = SENTINEL_KEY;
-  return fetch(`${API_BASE}${path}`, { ...options, headers });
+  const baseUrl = getApiBase();
+  return fetch(`${baseUrl}${path}`, { ...options, headers });
 }
 
 // ---- Tabs ---------------------------------------------------------------------
@@ -69,7 +92,7 @@ async function checkApiStatus() {
   const el = document.getElementById("apiStatus");
   const authBar = document.getElementById("authBar");
   try {
-    const res = await fetch(`${API_BASE}/health`);
+    const res = await apiFetch("/health");
     const data = await res.json();
     el.textContent = "API online";
     el.className = "api-badge online";
@@ -939,27 +962,102 @@ if (copyEndpointBtn) {
   });
 }
 
-// Connect Modal Tabs (Stdio vs SSE)
+// Connect Modal Tabs (Server Sync vs Stdio vs SSE)
+const tabServer = document.getElementById("tabServer");
 const tabStdio = document.getElementById("tabStdio");
 const tabSse = document.getElementById("tabSse");
+const panelServer = document.getElementById("panelServer");
 const panelStdio = document.getElementById("panelStdio");
 const panelSse = document.getElementById("panelSse");
 
-if (tabStdio && tabSse && panelStdio && panelSse) {
-  tabStdio.addEventListener("click", () => {
-    tabStdio.classList.add("active");
-    tabSse.classList.remove("active");
-    panelStdio.classList.remove("hidden");
-    panelSse.classList.add("hidden");
-  });
+if (tabServer && tabStdio && tabSse && panelServer && panelStdio && panelSse) {
+  const switchTab = (activeTab, activePanel) => {
+    [tabServer, tabStdio, tabSse].forEach(t => t.classList.remove("active"));
+    [panelServer, panelStdio, panelSse].forEach(p => p.classList.add("hidden"));
+    activeTab.classList.add("active");
+    activePanel.classList.remove("hidden");
+  };
+
+  tabServer.addEventListener("click", () => switchTab(tabServer, panelServer));
+  tabStdio.addEventListener("click", () => switchTab(tabStdio, panelStdio));
   tabSse.addEventListener("click", () => {
-    tabSse.classList.add("active");
-    tabStdio.classList.remove("active");
-    panelSse.classList.remove("hidden");
-    panelStdio.classList.add("hidden");
+    switchTab(tabSse, panelSse);
     checkSseStatus();
   });
 }
+
+// Server Config Panel Bindings
+const apiBaseInput = document.getElementById("apiBaseUrlInput");
+const sseUrlInput = document.getElementById("sseUrlInput");
+const apiKeyInput = document.getElementById("serverApiKeyInput");
+const serverStatusEl = document.getElementById("serverConnStatus");
+
+if (apiBaseInput) apiBaseInput.value = localStorage.getItem("sentinel_api_base") || "";
+if (sseUrlInput) sseUrlInput.value = localStorage.getItem("sentinel_sse_endpoint") || "";
+if (apiKeyInput) apiKeyInput.value = localStorage.getItem("sentinel_api_key") || "";
+
+const sseValElem = document.getElementById("sseEndpointVal");
+if (sseValElem) sseValElem.value = getSseUrl();
+
+document.getElementById("saveServerConfigBtn")?.addEventListener("click", async () => {
+  const newBase = apiBaseInput.value.trim();
+  const newSse = sseUrlInput.value.trim();
+  const newKey = apiKeyInput.value.trim();
+
+  if (newBase) localStorage.setItem("sentinel_api_base", newBase);
+  else localStorage.removeItem("sentinel_api_base");
+
+  if (newSse) localStorage.setItem("sentinel_sse_endpoint", newSse);
+  else localStorage.removeItem("sentinel_sse_endpoint");
+
+  if (newKey) {
+    localStorage.setItem("sentinel_api_key", newKey);
+    sessionStorage.setItem("sentinelKey", newKey);
+    SENTINEL_KEY = newKey;
+  } else {
+    localStorage.removeItem("sentinel_api_key");
+  }
+
+  if (sseValElem) sseValElem.value = getSseUrl();
+
+  if (serverStatusEl) {
+    serverStatusEl.className = "save-status";
+    serverStatusEl.textContent = "Testing connection...";
+  }
+
+  try {
+    await syncOptimizer.forceSync();
+    if (serverStatusEl) {
+      serverStatusEl.className = "save-status ok";
+      serverStatusEl.textContent = "Connected & Synced Successfully!";
+      setTimeout(() => { serverStatusEl.textContent = ""; }, 3000);
+    }
+  } catch (err) {
+    if (serverStatusEl) {
+      serverStatusEl.className = "save-status error";
+      serverStatusEl.textContent = "Connection failed: " + err.message;
+    }
+  }
+});
+
+document.getElementById("resetServerConfigBtn")?.addEventListener("click", async () => {
+  localStorage.removeItem("sentinel_api_base");
+  localStorage.removeItem("sentinel_sse_endpoint");
+  if (apiBaseInput) apiBaseInput.value = "";
+  if (sseUrlInput) sseUrlInput.value = "";
+  if (sseValElem) sseValElem.value = getSseUrl();
+  if (serverStatusEl) {
+    serverStatusEl.className = "save-status ok";
+    serverStatusEl.textContent = "Reset to auto-detect mode.";
+  }
+  await syncOptimizer.forceSync();
+  setTimeout(() => { if (serverStatusEl) serverStatusEl.textContent = ""; }, 2500);
+});
+
+document.getElementById("syncStatusBadge")?.addEventListener("click", () => {
+  const modal = document.getElementById("connectModal");
+  if (modal) modal.classList.remove("hidden");
+});
 
 const copySseEndpointBtn = document.getElementById("copySseEndpointBtn");
 if (copySseEndpointBtn) {
@@ -983,27 +1081,103 @@ async function checkSseStatus() {
   const badge = document.getElementById("sseBadge");
   const text = document.getElementById("sseBadgeText");
   if (!badge || !text) return;
+  const sseUrl = getSseUrl();
   try {
-    const res = await fetch("http://localhost:8002/sse", { method: "HEAD" });
+    const res = await fetch(sseUrl, { method: "GET" });
     badge.className = "conn-badge online-badge";
-    text.textContent = "SSE Server online on port 8002";
+    text.textContent = `SSE Server online at ${sseUrl}`;
   } catch (e) {
     badge.className = "conn-badge offline-badge";
-    text.textContent = "SSE Server offline. Run: python mcp_server/sse_server.py";
+    text.textContent = `SSE Server offline at ${sseUrl}`;
   }
 }
 
+// =============================================================================
+// Real-time Syncing Optimizer Engine
+// =============================================================================
+class SyncOptimizer {
+  constructor() {
+    this.timer = null;
+    this.activePollTimer = null;
+    this.intervalMs = 2000;
+    this.consecutiveErrors = 0;
+    this.isSyncing = false;
+    this.lastLatencyMs = 0;
+    this.isOnline = false;
+  }
+
+  updateSyncBadge(status, message) {
+    const badge = document.getElementById("syncStatusBadge");
+    const text = document.getElementById("syncStatusText");
+    if (!badge || !text) return;
+
+    if (status === "online") {
+      badge.className = "sync-badge";
+      text.textContent = `LIVE SYNC (${this.lastLatencyMs}ms)`;
+    } else if (status === "reconnecting") {
+      badge.className = "sync-badge reconnecting";
+      text.textContent = `RECONNECTING (${this.consecutiveErrors})...`;
+    } else {
+      badge.className = "sync-badge disconnected";
+      text.textContent = message || "DISCONNECTED";
+    }
+  }
+
+  async runSyncCycle() {
+    if (this.isSyncing) return;
+    this.isSyncing = true;
+    const start = Date.now();
+    try {
+      await checkApiStatus();
+      this.lastLatencyMs = Date.now() - start;
+      this.consecutiveErrors = 0;
+      this.isOnline = true;
+      this.updateSyncBadge("online");
+
+      // Background auto-refresh feed & review state
+      await loadFeed();
+      await checkActiveReviewState();
+    } catch (err) {
+      this.consecutiveErrors++;
+      this.isOnline = false;
+      if (this.consecutiveErrors > 1) {
+        this.updateSyncBadge("disconnected", "OFFLINE — Click to Connect");
+      } else {
+        this.updateSyncBadge("reconnecting");
+      }
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  start() {
+    this.stop();
+    this.runSyncCycle();
+    this.activePollTimer = setInterval(() => checkActiveReviewState(), 300);
+    this.timer = setInterval(() => this.runSyncCycle(), this.intervalMs);
+  }
+
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    if (this.activePollTimer) clearInterval(this.activePollTimer);
+  }
+
+  async forceSync() {
+    await this.runSyncCycle();
+    await loadRules();
+    await loadLocalModels();
+    await loadModelConfig();
+    await loadServers();
+    await checkSseStatus();
+  }
+}
+
+const syncOptimizer = new SyncOptimizer();
+
 // ---- Init ------------------------------------------------------------------------
 function loadEverything() {
-  checkApiStatus();
-  loadPipelineStatus();
-  loadFeed();
-  loadRules();
-  loadLocalModels();
-  loadModelConfig();
-  loadServers();
-  checkSseStatus();
-  startAutoRefresh();
+  syncOptimizer.forceSync();
+  syncOptimizer.start();
 }
 
 setProviderPanelVisibility("local");
