@@ -35,7 +35,7 @@ Existing solutions are binary — either the agent runs everything without revie
 
 Sentinel implements a **multi-stage decision pipeline** that handles the full spectrum from obviously safe to dangerously risky actions, using the fastest and most appropriate tool at each stage:
 
-**Stage 1 — Rules Engine**: Pattern matching on a configurable YAML ruleset. Handles unambiguous cases (recursive deletes, credential exposure, root-level writes) in microseconds with zero network dependency.
+**Stage 1 — Rules Engine**: Deterministic pattern matching on a configurable YAML ruleset (`config/rules.yaml`). Handles unambiguous cases (recursive deletes, credential exposure, root-level writes) in microseconds with zero network dependency. Features **mtime hot-reloading** across all processes so rules updated in the dashboard take effect immediately in running MCP servers.
 
 **Stage 2 — Trained Classifier**: A TF-IDF vectorizer and Logistic Regression classifier trained on a labeled dataset of agent actions. Runs in milliseconds, entirely offline, and produces an explainable risk score with confidence bounds.
 
@@ -46,20 +46,18 @@ Sentinel implements a **multi-stage decision pipeline** that handles the full sp
 ## Architecture
 
 ```
-MCP Client (Claude Code / Cursor / CodeX)
+MCP Client (Claude Code / Cursor / CodeX / Web UI)
         |
         +-- stdio transport (mcp_server/server.py)
         +-- SSE transport   (mcp_server/sse_server.py)
         |
         v
-        | HTTP POST /review
-        v
-  api/main.py (FastAPI)        <- REST API, audit log, config management
+  api/main.py (FastAPI)        <- REST API, static /dashboard, audit log, config management
         |
         v
   sentinel_core/orchestrator.py
         |
-        +-- Stage 1: sentinel_core/rules_engine.py   (config/rules.yaml)
+        +-- Stage 1: sentinel_core/rules_engine.py   (config/rules.yaml - mtime hot-reload)
         +-- Stage 2: sentinel_core/classifier.py     (model_artifacts/model.pkl)
         +-- Stage 3: sentinel_core/llm_reviewer.py   (sentinel_core/model_manager.py)
         |
@@ -271,12 +269,12 @@ For web platforms, remote agents, or testing with the **MCP Inspector**:
 
 ---
 
-### 5. Rapid Connection Utility in Dashboard
+### 5. Rapid Connection Utility & Real-Time Syncing Optimizer in Dashboard
 
-The dashboard provides a built-in interactive copy utility:
-1. Open `http://localhost:8080` in your browser.
-2. Click the **Connect** button in the top right header.
-3. Switch between **Stdio** and **SSE** tabs to generate auto-filled configuration snippets customized to your local file paths.
+The dashboard provides a built-in interactive server connection manager and real-time syncing optimizer:
+1. **Live Syncing Status**: The header badge **`LIVE SYNC (xx ms)`** dynamically monitors API latency, continuously updating decision logs, active review progress bars, and model health without manual page reloads.
+2. **Cloud & Remote Connection**: Click **Connect** or the **LIVE SYNC** badge to configure custom backend API URLs, SSE transport endpoints, or API keys for remote cloud deployments.
+3. **Auto-Generated Configs**: Switch between **Server Sync**, **Stdio**, and **SSE** tabs to copy auto-filled MCP configuration snippets customized to your local file paths.
 4. Click **Copy Config to Clipboard** and paste directly into your client's config file!
 
 ---

@@ -49,6 +49,10 @@
     </nav>
 
     <div class="header-right">
+      <div class="sync-badge" id="syncStatusBadge" title="Click to configure Backend Server & Real-time Syncing">
+        <span class="sync-dot pulse-dot"></span>
+        <span id="syncStatusText">LIVE SYNC</span>
+      </div>
       <div class="model-badge" id="activeModelHeader" style="background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.3); color: #00f2fe; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
         <span class="pulse-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #00f2fe;"></span>
         <span id="activeModelText">DETECTING MODEL...</span>
@@ -562,9 +566,13 @@
 
       <div class="modal-body">
 
-        <!-- Transport selector -->
+        <!-- Transport / Server selector -->
         <div class="transport-tabs">
-          <button class="transport-tab active" id="tabStdio">
+          <button class="transport-tab active" id="tabServer">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+            Server Sync <span class="transport-badge sse-badge">Cloud&nbsp;&amp;&nbsp;Local</span>
+          </button>
+          <button class="transport-tab" id="tabStdio">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
             Stdio <span class="transport-badge">Local&nbsp;tools</span>
           </button>
@@ -574,8 +582,36 @@
           </button>
         </div>
 
+        <!-- ===== SERVER SETTINGS PANEL ===== -->
+        <div id="panelServer" class="transport-panel">
+          <div class="modal-section">
+            <label>Backend API Base URL (FastAPI Server)</label>
+            <div class="copy-input-group">
+              <input type="text" id="apiBaseUrlInput" placeholder="http://localhost:8000 or https://your-cloud-api.com" />
+            </div>
+            <p class="hint small" style="color: var(--text-dim); margin-top: 4px;">Leave empty to auto-detect current web origin or default to http://localhost:8000.</p>
+          </div>
+          <div class="modal-section" style="margin-top: 12px;">
+            <label>SSE Transport URL</label>
+            <div class="copy-input-group">
+              <input type="text" id="sseUrlInput" placeholder="http://localhost:8002/sse or https://your-cloud-api.com/sse" />
+            </div>
+          </div>
+          <div class="modal-section" style="margin-top: 12px;">
+            <label>API Key (X-Sentinel-Key, if enabled)</label>
+            <div class="copy-input-group">
+              <input type="password" id="serverApiKeyInput" placeholder="Optional secret key" />
+            </div>
+          </div>
+          <div style="margin-top: 16px; display: flex; align-items: center; gap: 12px;">
+            <button id="saveServerConfigBtn" class="primary-btn" style="flex: 1;">Save &amp; Connect Server</button>
+            <button id="resetServerConfigBtn" class="action-btn" style="background: rgba(255,255,255,0.08); color: var(--text);">Auto-Detect</button>
+          </div>
+          <div id="serverConnStatus" class="save-status" style="margin-top: 10px; display: block;"></div>
+        </div>
+
         <!-- ===== STDIO PANEL ===== -->
-        <div id="panelStdio" class="transport-panel">
+        <div id="panelStdio" class="transport-panel hidden">
           <div class="modal-section">
             <label>Stdio MCP — Local Process Command</label>
             <div class="copy-input-group">

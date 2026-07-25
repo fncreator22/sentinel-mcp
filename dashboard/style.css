@@ -220,6 +220,53 @@ body {
   gap: 16px;
 }
 
+.sync-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 217, 245, 0.08);
+  border: 1px solid rgba(0, 217, 245, 0.25);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sync-badge:hover {
+  background: rgba(0, 217, 245, 0.15);
+  box-shadow: 0 0 12px rgba(0, 217, 245, 0.3);
+}
+
+.sync-badge.reconnecting {
+  background: rgba(255, 171, 0, 0.08);
+  border-color: rgba(255, 171, 0, 0.3);
+  color: #ffab00;
+}
+
+.sync-badge.disconnected {
+  background: rgba(255, 61, 87, 0.08);
+  border-color: rgba(255, 61, 87, 0.3);
+  color: var(--signal-block);
+}
+
+.sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.sync-badge.reconnecting .sync-dot {
+  background: #ffab00;
+}
+
+.sync-badge.disconnected .sync-dot {
+  background: var(--signal-block);
+}
+
 .api-badge {
   font-family: var(--font-mono);
   font-size: 11px;
